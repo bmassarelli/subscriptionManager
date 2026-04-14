@@ -1,0 +1,14 @@
+$kind: http-request
+name: Cancel Subscription
+url: https://ts-training-2.io/ros-rest/subsmanCancel
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \    \"id\": 1,\r
+
+    \    \"immediate\": false\r
+
+    }"
+order: 1669
