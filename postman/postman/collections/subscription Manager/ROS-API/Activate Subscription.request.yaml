@@ -1,0 +1,32 @@
+$kind: http-request
+name: Activate Subscription
+url: https://ts-training-2.io/ros-rest/subsmanActivate
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \    \"platform\": \"MOBILE_BSCS9\",\r
+
+    \    \"contract\": \"CONTR_00001\",\r
+
+    \    \"po\": \"claroVideo\",\r
+
+    \    \"amount\": 29.75,\r
+
+    \    \"client\": {\r
+
+    \        \"clientId\": null,\r
+
+    \        \"name\": \"Bruno\",\r
+
+    \        \"lastName\": \"Totti\",\r
+
+    \        \"email\": \"bruno.massarelli@example.com\",\r
+
+    \        \"msisdn\": \"51989998888\"\r
+
+    \    }\r
+
+    }"
+order: 1776198632282
