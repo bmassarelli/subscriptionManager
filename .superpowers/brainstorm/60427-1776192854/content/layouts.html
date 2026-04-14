@@ -1,0 +1,91 @@
+<h2>Which layout works best for you?</h2>
+<p class="subtitle">All use React + Bootstrap. Pick the structure that fits your workflow.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;background:#f8f9fa;border-radius:4px;">
+      <div style="background:#0d6efd;color:#fff;padding:6px 12px;border-radius:4px;font-size:12px;margin-bottom:8px;display:inline-block;">Subscription Manager</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+        <div style="flex:1;background:#e9ecef;height:28px;border-radius:4px;display:flex;align-items:center;padding:0 8px;font-size:11px;color:#6c757d;">🔍 Search by client, platform, status...</div>
+        <div style="background:#e9ecef;height:28px;width:70px;border-radius:4px;font-size:11px;color:#6c757d;display:flex;align-items:center;justify-content:center;">Status ▾</div>
+        <div style="background:#e9ecef;height:28px;width:80px;border-radius:4px;font-size:11px;color:#6c757d;display:flex;align-items:center;justify-content:center;">Platform ▾</div>
+      </div>
+      <div style="background:#fff;border:1px solid #dee2e6;border-radius:4px;font-size:11px;">
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:4px;padding:6px 8px;background:#f8f9fa;color:#6c757d;font-weight:600;border-bottom:1px solid #dee2e6;">
+          <span>Client</span><span>Platform</span><span>Status</span><span>Amount</span><span>Date</span>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:4px;padding:5px 8px;border-bottom:1px solid #f0f0f0;"><span>John Smith</span><span>Netflix</span><span style="color:green">Active</span><span>$9.99</span><span>Jan 10</span></div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:4px;padding:5px 8px;border-bottom:1px solid #f0f0f0;"><span>Maria García</span><span>Spotify</span><span style="color:orange">Trial</span><span>$4.99</span><span>Jan 8</span></div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:4px;padding:5px 8px;"><span>Bob Lee</span><span>Disney+</span><span style="color:red">Cancelled</span><span>$7.99</span><span>Jan 5</span></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;font-size:11px;color:#6c757d;">
+        <span>← 1 2 3 →</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Top bar search + table</h3>
+      <p>Search bar + quick filters across the top, full-width paginated table below. Maximum data density. Best for power users who know what they're looking for.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;background:#f8f9fa;border-radius:4px;">
+      <div style="background:#0d6efd;color:#fff;padding:6px 12px;border-radius:4px;font-size:12px;margin-bottom:8px;display:inline-block;">Subscription Manager</div>
+      <div style="display:flex;gap:8px;">
+        <div style="width:110px;background:#fff;border:1px solid #dee2e6;border-radius:4px;padding:8px;font-size:11px;flex-shrink:0;">
+          <div style="font-weight:600;margin-bottom:6px;color:#495057;">Filters</div>
+          <div style="margin-bottom:4px;color:#6c757d;">Status</div>
+          <div style="background:#e9ecef;height:22px;border-radius:3px;margin-bottom:6px;"></div>
+          <div style="margin-bottom:4px;color:#6c757d;">Platform</div>
+          <div style="background:#e9ecef;height:22px;border-radius:3px;margin-bottom:6px;"></div>
+          <div style="margin-bottom:4px;color:#6c757d;">Date range</div>
+          <div style="background:#e9ecef;height:22px;border-radius:3px;margin-bottom:6px;"></div>
+          <div style="background:#0d6efd;color:#fff;text-align:center;border-radius:3px;padding:3px;margin-top:4px;">Apply</div>
+        </div>
+        <div style="flex:1;">
+          <div style="background:#e9ecef;height:26px;border-radius:4px;margin-bottom:6px;display:flex;align-items:center;padding:0 8px;font-size:11px;color:#6c757d;">🔍 Search...</div>
+          <div style="background:#fff;border:1px solid #dee2e6;border-radius:4px;font-size:11px;">
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:4px;padding:5px 8px;background:#f8f9fa;color:#6c757d;font-weight:600;border-bottom:1px solid #dee2e6;"><span>Client</span><span>Platform</span><span>Status</span><span>Amount</span></div>
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:4px;padding:4px 8px;border-bottom:1px solid #f0f0f0;"><span>John Smith</span><span>Netflix</span><span style="color:green">Active</span><span>$9.99</span></div>
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:4px;padding:4px 8px;border-bottom:1px solid #f0f0f0;"><span>Maria García</span><span>Spotify</span><span style="color:orange">Trial</span><span>$4.99</span></div>
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:4px;padding:4px 8px;"><span>Bob Lee</span><span>Disney+</span><span style="color:red">Cancelled</span><span>$7.99</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Sidebar filters + table</h3>
+      <p>Persistent filter panel on the left, table on the right. Great when you frequently filter by multiple criteria at once (status + platform + date range).</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;background:#f8f9fa;border-radius:4px;">
+      <div style="background:#0d6efd;color:#fff;padding:6px 12px;border-radius:4px;font-size:12px;margin-bottom:8px;display:inline-block;">Subscription Manager</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+        <div style="background:#198754;color:#fff;padding:4px 10px;border-radius:20px;font-size:11px;">Active: 142</div>
+        <div style="background:#ffc107;color:#000;padding:4px 10px;border-radius:20px;font-size:11px;">Trial: 28</div>
+        <div style="background:#dc3545;color:#fff;padding:4px 10px;border-radius:20px;font-size:11px;">Cancelled: 35</div>
+        <div style="background:#6c757d;color:#fff;padding:4px 10px;border-radius:20px;font-size:11px;">Total: 205</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+        <div style="flex:1;background:#e9ecef;height:26px;border-radius:4px;display:flex;align-items:center;padding:0 8px;font-size:11px;color:#6c757d;">🔍 Search...</div>
+        <div style="background:#e9ecef;height:26px;width:70px;border-radius:4px;font-size:11px;color:#6c757d;display:flex;align-items:center;justify-content:center;">Status ▾</div>
+      </div>
+      <div style="background:#fff;border:1px solid #dee2e6;border-radius:4px;font-size:11px;">
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:4px;padding:5px 8px;background:#f8f9fa;color:#6c757d;font-weight:600;border-bottom:1px solid #dee2e6;">
+          <span>Client</span><span>Platform</span><span>Status</span><span>Amount</span><span>Date</span>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:4px;padding:4px 8px;border-bottom:1px solid #f0f0f0;"><span>John Smith</span><span>Netflix</span><span style="color:green">Active</span><span>$9.99</span><span>Jan 10</span></div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:4px;padding:4px 8px;border-bottom:1px solid #f0f0f0;"><span>Maria García</span><span>Spotify</span><span style="color:orange">Trial</span><span>$4.99</span><span>Jan 8</span></div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:4px;padding:4px 8px;"><span>Bob Lee</span><span>Disney+</span><span style="color:red">Cancelled</span><span>$7.99</span><span>Jan 5</span></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Summary badges + search + table</h3>
+      <p>Status summary badges at the top (clickable to filter), search bar, then the table. Gives quick visibility into counts without being a full dashboard.</p>
+    </div>
+  </div>
+
+</div>
