@@ -17,7 +17,24 @@ function SortIndicator({ column, sort }) {
   return <span className="ms-1">{sort.direction === 'asc' ? '↑' : '↓'}</span>;
 }
 
-export default function SubscriptionTable({ rows, total, sort, onSort, page, rowsPerPage, onPageChange, onRowsPerPageChange }) {
+function ActivateNetworkOverlay() {
+  return (
+    <div
+      className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+      style={{ background: 'rgba(255, 255, 255, 0.75)', zIndex: 10, backdropFilter: 'blur(2px)' }}
+    >
+      <div className="text-center">
+        <div className="spinner-border text-primary mb-2" role="status" style={{ width: '2.5rem', height: '2.5rem' }}>
+          <span className="visually-hidden">Loading...</span>
+        </div>
+        <div className="fw-semibold text-primary fs-6">Activate Network</div>
+        <div className="text-muted small mt-1">Processing activation...</div>
+      </div>
+    </div>
+  );
+}
+
+export default function SubscriptionTable({ rows, total, sort, onSort, page, rowsPerPage, onPageChange, onRowsPerPageChange, activatingId, onActivate }) {
   const totalPages = Math.ceil(total / rowsPerPage) || 1;
   const from = total === 0 ? 0 : (page - 1) * rowsPerPage + 1;
   const to = Math.min(page * rowsPerPage, total);
@@ -60,55 +77,69 @@ export default function SubscriptionTable({ rows, total, sort, onSort, page, row
         </div>
       </div>
 
-      <div className="table-responsive">
-        <table className="table table-bordered table-hover table-sm">
-          <thead className="table-light">
-            <tr>
-              {COLUMNS.map(col => (
-                <th
-                  key={col.key}
-                  style={SORTABLE_COLUMNS.includes(col.key) ? { cursor: 'pointer', userSelect: 'none' } : {}}
-                  onClick={() => handleHeaderClick(col.key)}
-                >
-                  {col.label}
-                  {SORTABLE_COLUMNS.includes(col.key) && (
-                    <SortIndicator column={col.key} sort={sort} />
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
+      <div className="position-relative">
+        {activatingId !== null && <ActivateNetworkOverlay />}
+        <div className="table-responsive">
+          <table className="table table-bordered table-hover table-sm">
+            <thead className="table-light">
               <tr>
-                <td colSpan={7} className="text-center text-muted py-4">
-                  No subscriptions found
-                </td>
+                {COLUMNS.map(col => (
+                  <th
+                    key={col.key}
+                    style={SORTABLE_COLUMNS.includes(col.key) ? { cursor: 'pointer', userSelect: 'none' } : {}}
+                    onClick={() => handleHeaderClick(col.key)}
+                  >
+                    {col.label}
+                    {SORTABLE_COLUMNS.includes(col.key) && (
+                      <SortIndicator column={col.key} sort={sort} />
+                    )}
+                  </th>
+                ))}
               </tr>
-            ) : (
-              rows.map(row => (
-                <tr key={row.id}>
-                  <td>
-                    <div className="fw-semibold">{row.clientName}</div>
-                    <div className="text-muted small">{row.email} · {row.msisdn}</div>
-                  </td>
-                  <td>{row.platform}</td>
-                  <td className="text-muted">{row.contract}</td>
-                  <td>
-                    <span className={STATUS_BADGE_CLASSES[row.status]}>
-                      {STATUS_LABELS[row.status]}
-                    </span>
-                  </td>
-                  <td className="text-muted">{row.entryDate}</td>
-                  <td>${row.amount.toFixed(2)}</td>
-                  <td>
-                    <button className="btn btn-link btn-sm p-0">View</button>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-center text-muted py-4">
+                    No subscriptions found
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                rows.map(row => (
+                  <tr key={row.id}>
+                    <td>
+                      <div className="fw-semibold">{row.clientName}</div>
+                      <div className="text-muted small">{row.email} · {row.msisdn}</div>
+                    </td>
+                    <td>{row.platform}</td>
+                    <td className="text-muted">{row.contract}</td>
+                    <td>
+                      <span className={STATUS_BADGE_CLASSES[row.status]}>
+                        {STATUS_LABELS[row.status]}
+                      </span>
+                    </td>
+                    <td className="text-muted">{row.entryDate}</td>
+                    <td>${row.amount.toFixed(2)}</td>
+                    <td>
+                      <div className="d-flex align-items-center gap-2">
+                        <button className="btn btn-link btn-sm p-0">View</button>
+                        {row.status !== 'A' && (
+                          <button
+                            className="btn btn-outline-primary btn-sm"
+                            disabled={activatingId !== null}
+                            onClick={() => onActivate(row.id)}
+                          >
+                            Activate Sub
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
