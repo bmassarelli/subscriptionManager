@@ -1,10 +1,12 @@
 $kind: http-request
-name: Activate Subscription
-url: https://ts-training-2.io/ros-rest/subsmanActivate
+name: Subscription Gateway
+url: https://ts-training-2.io/ros-rest/subsmanGateway
 method: POST
 body:
   type: json
   content: "{\r
+
+    \    \"event\": \"createContract\",\r
 
     \    \"platform\": \"MOBILE_BSCS9\",\r
 
@@ -26,25 +28,7 @@ body:
 
     \        \"msisdn\": \"51989998881\"\r
 
-    \    },\r
-
-    \    \"trial\": {\r
-
-    \        \"number\": \"7\",\r
-
-    \        \"type\": \"D\"\r
-
-    \    },\r
-
-    \    \"duration\": {\r
-
-    \        \"number\": \"30\",\r
-
-    \        \"type\": \"D\"\r
-
-    \    },\r
-
-    \    \"paymentMode\": \"1\"\r
+    \    }\r
 
     }"
-order: 4000
+order: 3334
