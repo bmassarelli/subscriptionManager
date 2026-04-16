@@ -1,10 +1,11 @@
 $kind: http-request
-name: Get Subscriptions
+name: Get Subscriptions by email
 url: https://ts-training-2.io/ros-rest/subsmanGetSubscriptions?clientId=1
 method: GET
 queryParams:
-  clientId: "1"
+  - key: clientId
+    value: "1"
 body:
   type: json
   content: ""
-order: 2000
+order: 3000

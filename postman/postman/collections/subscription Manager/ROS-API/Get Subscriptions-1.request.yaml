@@ -1,0 +1,10 @@
+$kind: http-request
+name: Get Subscriptions
+url: https://ts-training-2.io/ros-rest/subsmanGetSubscriptions?clientId=1
+method: GET
+queryParams:
+  clientId: "1"
+body:
+  type: json
+  content: ""
+order: 2271
