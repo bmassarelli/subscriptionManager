@@ -4,9 +4,9 @@ export function applyFilters(data, filters) {
     if (search) {
       const q = search.toLowerCase();
       const matches =
-        item.clientName.toLowerCase().includes(q) ||
-        item.email.toLowerCase().includes(q) ||
-        item.msisdn.includes(q);
+        (item.clientName || '').toLowerCase().includes(q) ||
+        (item.email || '').toLowerCase().includes(q) ||
+        (item.msisdn || '').includes(q);
       if (!matches) return false;
     }
     if (statuses.length === 0) return false;
