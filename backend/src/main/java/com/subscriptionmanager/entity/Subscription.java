@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(schema = "SUBSCRIBER_MANAGER", name = "SUBSCRIPTIONS")
+@Table(schema = "SUBSCRIPTION_MANAGER", name = "SUBSCRIPTIONS")
 public class Subscription {
 
     @Id

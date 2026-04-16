@@ -3,7 +3,7 @@ package com.subscriptionmanager.entity;
 import jakarta.persistence.*;
 
 @Entity
-@Table(schema = "SUBSCRIBER_MANAGER", name = "CLIENT")
+@Table(schema = "SUBSCRIPTION_MANAGER", name = "CLIENT")
 public class Client {
 
     @Id

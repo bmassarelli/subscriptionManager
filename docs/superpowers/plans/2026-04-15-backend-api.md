@@ -118,7 +118,7 @@ public class SubscriptionManagerApplication {
 
 ```properties
 spring.datasource.url=jdbc:oracle:thin:@//HOST:PORT/SERVICE_NAME
-spring.datasource.username=SUBSCRIBER_MANAGER
+spring.datasource.username=SUBSCRIPTION_MANAGER
 spring.datasource.password=th1nksk1nk
 spring.datasource.driver-class-name=oracle.jdbc.OracleDriver
 spring.jpa.database-platform=org.hibernate.dialect.OracleDialect
@@ -150,7 +150,7 @@ package com.subscriptionmanager.entity;
 import jakarta.persistence.*;
 
 @Entity
-@Table(schema = "SUBSCRIBER_MANAGER", name = "CLIENT")
+@Table(schema = "SUBSCRIPTION_MANAGER", name = "CLIENT")
 public class Client {
 
     @Id
@@ -187,7 +187,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(schema = "SUBSCRIBER_MANAGER", name = "SUBSCRIPTIONS")
+@Table(schema = "SUBSCRIPTION_MANAGER", name = "SUBSCRIPTIONS")
 public class Subscription {
 
     @Id

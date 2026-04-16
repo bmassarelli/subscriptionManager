@@ -150,7 +150,7 @@ GET /subsmanGetSubscriptions?email=xxxx@email.com
 
 ## Charge Subscription — ROS Loader
 
-The ROS Loader periodically queries `SUBSCRIBER_MANAGER.SUBSCRIPTIONS` for subscriptions eligible for charging. The **PO (Product Offering)** determines which charging platform to use via the catalog.
+The ROS Loader periodically queries `SUBSCRIPTION_MANAGER.SUBSCRIPTIONS` for subscriptions eligible for charging. The **PO (Product Offering)** determines which charging platform to use via the catalog.
 
 ### Charging Flow
 

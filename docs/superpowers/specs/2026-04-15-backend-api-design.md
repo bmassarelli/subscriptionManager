@@ -14,7 +14,7 @@ Add a Spring Boot 3 backend (`backend/`) that connects to Oracle and exposes a R
 ## Architecture
 
 ```
-Oracle DB (SUBSCRIBER_MANAGER schema)
+Oracle DB (SUBSCRIPTION_MANAGER schema)
     ↓
 Spring Boot API  →  GET /api/subscriptions
     ↓
@@ -71,10 +71,10 @@ Response shape (matches existing frontend mock data shape):
 
 ### JPA Entities
 
-**Client** maps to `SUBSCRIBER_MANAGER.CLIENT`:
+**Client** maps to `SUBSCRIPTION_MANAGER.CLIENT`:
 - `clientId` (PK), `name`, `lastName`, `email`, `msisdn`
 
-**Subscription** maps to `SUBSCRIBER_MANAGER.SUBSCRIPTIONS`:
+**Subscription** maps to `SUBSCRIPTION_MANAGER.SUBSCRIPTIONS`:
 - `id` (PK), `client` (@ManyToOne → Client), `platform`, `contract`, `status`, `entryDate`, `amount`
 
 ### DTO
@@ -86,7 +86,7 @@ Allow all methods from `http://localhost:3000`.
 ### application.properties
 ```properties
 spring.datasource.url=jdbc:oracle:thin:@//HOST:PORT/SERVICE_NAME
-spring.datasource.username=SUBSCRIBER_MANAGER
+spring.datasource.username=SUBSCRIPTION_MANAGER
 spring.datasource.password=th1nksk1nk
 spring.datasource.driver-class-name=oracle.jdbc.OracleDriver
 spring.jpa.database-platform=org.hibernate.dialect.OracleDialect

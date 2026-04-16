@@ -7,7 +7,7 @@ A subscription management system backed by an Oracle database. Currently has a R
 ```
 subscriptionManager/
 ├── database/
-│   └── 001-baseline.sql        # Oracle schema (SUBSCRIBER_MANAGER user)
+│   └── 001-baseline.sql        # Oracle schema (SUBSCRIPTION_MANAGER user)
 ├── frontend/                   # React app (Create React App + Bootstrap 5)
 │   └── src/
 │       ├── App.jsx             # Root: all filter/sort/page state lives here
@@ -33,7 +33,7 @@ npm run build    # production build
 
 ## Database
 
-Oracle DB, schema: `SUBSCRIBER_MANAGER`. Two tables:
+Oracle DB, schema: `SUBSCRIPTION_MANAGER`. Two tables:
 
 - `CLIENT` — CLIENT_ID, NAME, LAST_NAME, EMAIL, MSISDN
 - `SUBSCRIPTIONS` — ID, CLIENT_ID, PLATFORM, CONTRACT, STATUS (VARCHAR2(2)), AMOUNT, dates...
