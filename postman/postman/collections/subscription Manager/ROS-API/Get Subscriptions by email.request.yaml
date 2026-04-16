@@ -1,10 +1,9 @@
 $kind: http-request
 name: Get Subscriptions by email
-url: https://ts-training-2.io/ros-rest/subsmanGetSubscriptions?clientId=1
+url: https://ts-training-2.io/ros-rest/subsmanGetSubscriptions?email=bruno.massarelli@example.com
 method: GET
 queryParams:
-  - key: clientId
-    value: "1"
+  email: bruno.massarelli@example.com
 body:
   type: json
   content: ""
