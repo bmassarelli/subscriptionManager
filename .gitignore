@@ -25,3 +25,6 @@ replay_pid*
 
 # Brainstorming session files (temp, not for team)
 .superpowers/
+
+# Local DB credentials — never commit
+backend/src/main/resources/application.properties
