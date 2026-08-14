@@ -1,0 +1,12 @@
+$kind: http-request
+name: retorno
+url: https://ts-training-2.io/ros-rest/retornoProgramacion
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \    \"serialData\": \"9511949632026041700000120260416033621202102\"\r
+
+    }"
+order: 1942
