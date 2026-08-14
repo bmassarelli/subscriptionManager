@@ -189,7 +189,40 @@ It communicates with the **API Gateway**, which routes the `Deactivate Contract`
 
 ---
 
-### Get Subscription
+### Reconnect Subscription
+
+Reestablishes the service for a **suspended** (`SU`) subscription. This flow is triggered
+when the API Gateway receives a `Reconnect Contract` event. Payment is assumed to have
+already been settled — no payment processing occurs in this flow.
+
+#### Reconnect Flow
+
+```
+API Gateway → Reconnect Contract event
+(contains contract identifier)
+        ↓
+Subscription Manager - Reconnect flow
+        ↓
+Look up subscription in SUBSCRIPTIONS table
+        ↓
+Validate subscription status = SU (Suspended)
+        ↓
+Update SUBSCRIPTIONS:
+  - STATUS = AC (Active)
+  - MODIFY_DATE = now
+        ↓
+Call subflow: Subscription Manager - Network Activate
+        ↓
+Service reestablished for the client
+```
+
+> **SU vs EX reestablishment:**
+> - `SU` (Suspended) → reestablished via **Reconnect Contract** event (this flow)
+> - `EX` (Expired — payment failure) → reestablished via **Payment Received** flow
+
+---
+
+### Get Subscriptions
 
 Retrieves client and subscription information by **email** or **client ID**.
 
@@ -197,6 +230,33 @@ Retrieves client and subscription information by **email** or **client ID**.
 GET /subsmanGetSubscriptions?clientId=1
 GET /subsmanGetSubscriptions?email=xxxx@email.com
 ```
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "platform": "MOBILE_BSCS9",
+    "contract": "CONTR_00001",
+    "po": "claroVideo",
+    "status": "AC",
+    "amount": 29.75,
+    "activateDate": "2024-01-10",
+    "deactivateDate": "2024-02-10",
+    "cancelDate": null,
+    "client": {
+      "clientId": 1,
+      "name": "Roney",
+      "lastName": "Totti",
+      "email": "bruno.massarelli@example.com",
+      "msisdn": "51989998881"
+    }
+  }
+]
+```
+
+A client may have multiple subscriptions. The response always returns an array,
+even when querying by `clientId` with a single result.
 
 ---
 
