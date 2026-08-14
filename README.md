@@ -52,14 +52,16 @@ Stores customer information: email, first name, last name, and MSISDN.
 
 ### Subscription Statuses
 
-| Code | Description |
-|------|-------------|
-| AC   | Active      |
-| CA   | Cancelled   |
-| EX   | Expired     |
-| TR   | Trial       |
-| SU   | Suspended   |
-| ER   | Error       |
+| Code | Description | When set                                                                 |
+|------|-------------|--------------------------------------------------------------------------|
+| AC   | Active      | Subscription is active and charges are being processed                   |
+| TR   | Trial       | Within the trial period — no charges yet                                 |
+| SU   | Suspended   | Temporarily suspended — service interrupted, can be reconnected          |
+| EX   | Expired     | Payment failed (e.g., insufficient balance); service deactivated         |
+| CA   | Cancelled   | Explicitly cancelled by the client via a cancellation request (`CANCEL_DATE` is set) |
+| ER   | Error       | A processing error occurred during charging or activation                |
+
+> **Important:** `CA` is exclusively set when the **client requests cancellation**. Payment failures must never result in a `CA` status — they result in `EX` instead.
 
 ---
 
@@ -73,7 +75,24 @@ Base URL: `https://ts-training-2.io/ros-rest/`
 
 **Creates a new subscription.** Also creates the client record if `clientId` is null. A client may have multiple subscriptions with different contracts.
 
-> If a cancelled subscription already exists for the same contract, it is set to **pending reactivation** instead of creating a new record.
+> If a subscription with status `CA` (Cancelled) or `EX` (Expired) already exists for the same contract, it is set to **pending reactivation** instead of creating a new record.
+
+After persisting the subscription, the Activate service triggers the **Subscription Manager - Network Activate** subflow, which notifies the API Gateway to activate the contract on the network.
+
+#### Activation Flow
+
+```
+POST /subsmanActivate
+        ↓
+Create/update SUBSCRIPTIONS record in DB
+(create CLIENT record if clientId is null)
+        ↓
+Call subflow: Subscription Manager - Network Activate
+        ↓
+API Gateway → Create Contract event sent to network
+        ↓
+Network activation confirmed
+```
 
 **Endpoint:** `POST /subsmanActivate`
 
@@ -118,7 +137,9 @@ Base URL: `https://ts-training-2.io/ros-rest/`
 
 ### Cancel Subscription
 
-Sets the `CANCEL_DATE` and schedules future deactivation, stopping further charges.
+Sets the `CANCEL_DATE`, sets `STATUS = CA`, and stops further charges. This endpoint is **only triggered by an explicit client request** — payment failures must never invoke this flow.
+
+The `immediate` flag controls whether network deactivation happens right away or at the end of the billing period.
 
 **Endpoint:** `POST /subsmanCancel`
 
@@ -134,6 +155,37 @@ Sets the `CANCEL_DATE` and schedules future deactivation, stopping further charg
 |-------------|--------------------------------------------------------------|
 | `id`        | Subscription ID                                              |
 | `immediate` | `true` = deactivate now; `false` = deactivate at period end  |
+
+#### Cancellation Flow
+
+```
+POST /subsmanCancel
+        ↓
+Set CANCEL_DATE = now
+Set STATUS = CA
+        ↓
+        ├─── immediate: false ───────────────────────────────────────┐
+        │                                                            │
+        │    Schedule deactivation for end of billing period         │
+        │    (DEACTIVATE_DATE remains as originally set)             │
+        │    No network call is made at this point.                  │
+        │                                                            │
+        └─── immediate: true ────────────────────────────────────────┘
+             │
+             Set DEACTIVATE_DATE = now
+             │
+             Call subflow: Subscription Manager - Network Deactivate
+             │
+             API Gateway → Deactivate Contract event sent to network
+             │
+             Network deactivation confirmed
+```
+
+#### Subflow: Subscription Manager - Network Deactivate
+
+This subflow is exclusively responsible for triggering the network-side contract deactivation. It is only invoked when `immediate: true`.
+
+It communicates with the **API Gateway**, which routes the `Deactivate Contract` transaction to the appropriate network systems. The API Gateway is a shared service that accepts contract lifecycle events (activate, deactivate, suspend, reconnect, customer data changes) from any authorized client service.
 
 ---
 
@@ -165,6 +217,7 @@ Updates SUBSCRIPTIONS:
   - TRANSACTION_DATE = execution date
   - FLOW = charging flow used
   - ERROR_CODE / ERROR_MSG (if failed)
+  - STATUS = EX (Expired) if payment fails for any reason
   - MODIFY_DATE = now
 ```
 
@@ -181,9 +234,11 @@ Before charging, the loader must validate:
 
 ---
 
-## API Gateway — Contract Events
+## API Gateway — Events
 
-The API Gateway manages all contract lifecycle events. It receives and routes the following transaction types:
+The API Gateway is a shared routing service that accepts transactions from authorized client services (including Subscription Manager) and forwards them to the appropriate downstream systems. It handles two categories of events: **contract lifecycle** and **payment**.
+
+### Contract Lifecycle Events
 
 | Event                          | Description                                  |
 |-------------------------------|----------------------------------------------|
@@ -202,6 +257,41 @@ The API Gateway manages all contract lifecycle events. It receives and routes th
 | Del PO                        | Remove Product Offering                      |
 | Del Addon                     | Remove addon                                 |
 | Change BillCycle              | Update billing cycle                         |
+
+### Payment Events
+
+| Event             | Description                                                              |
+|-------------------|--------------------------------------------------------------------------|
+| Payment Received  | Inbound payment order routed to the Subscription Manager payment flow    |
+
+When the API Gateway receives a **Payment Received** event, it forwards the payment order to the **Subscription Manager - Payment Received** flow for processing.
+
+#### Payment Received Flow
+
+This flow receives a payment order containing the **client** and **subscription** identifiers, confirming that payment was previously processed by an external system. Its responsibility is to reestablish the service for subscriptions that expired due to payment failure.
+
+> **Note:** This flow targets `EX` (Expired) subscriptions only — those that were deactivated because a charge could not be collected. Suspended (`SU`) subscriptions are reestablished via the `Reconnect Contract` event on the API Gateway, not through this flow.
+
+```
+External payment source
+        ↓
+API Gateway → Payment Received event
+(contains client ID + subscription ID, payment already confirmed externally)
+        ↓
+Subscription Manager - Payment Received flow
+        ↓
+Look up subscription in SUBSCRIPTIONS table
+        ↓
+Validate subscription status = EX (Expired — payment failure)
+        ↓
+Update SUBSCRIPTIONS:
+  - STATUS = AC (Active)
+  - MODIFY_DATE = now
+        ↓
+Call subflow: Subscription Manager - Network Activate
+        ↓
+Service reestablished for the client
+```
 
 ---
 

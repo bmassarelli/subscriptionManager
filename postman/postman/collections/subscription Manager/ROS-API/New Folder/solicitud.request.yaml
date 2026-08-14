@@ -1,0 +1,14 @@
+$kind: http-request
+name: solicitud
+url: https://ts-training-2.io/ros-rest/portabilidadSolicitudes
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \    \"fechaEnvio\": \"20260415015012999\",\r
+
+    \    \"serialData\": \"937325979202604170000012021\"\r
+
+    }"
+order: 2000
