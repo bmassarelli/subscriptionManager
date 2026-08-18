@@ -2,8 +2,14 @@ import { useState, useEffect, useMemo } from 'react';
 import { ALL_STATUSES } from './constants';
 import { applyFilters, applySort, paginate } from './utils/filterSort';
 import Navbar from './components/Navbar';
+import Sidebar from './components/Sidebar';
 import FilterSidebar from './components/FilterSidebar';
 import SubscriptionTable from './components/SubscriptionTable';
+import ClientsModule from './components/ClientsModule';
+import OperationsModule from './components/OperationsModule';
+import DashboardModule from './components/DashboardModule';
+import AddSubscriptionForm from './components/AddSubscriptionForm';
+import SubscriptionDetail from './components/SubscriptionDetail';
 
 const INITIAL_FILTERS = {
   search: '',
@@ -16,6 +22,7 @@ const INITIAL_FILTERS = {
 const INITIAL_SORT = { column: 'entryDate', direction: 'desc' };
 
 export default function App() {
+  const [activeModule, setActiveModule] = useState('subscriptions');
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -23,16 +30,26 @@ export default function App() {
   const [sort, setSort] = useState(INITIAL_SORT);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [showAddSubscription, setShowAddSubscription] = useState(false);
+  const [selectedSubscriptionId, setSelectedSubscriptionId] = useState(null);
 
-  useEffect(() => {
-    fetch('http://localhost:8080/api/subscriptions')
+  function loadSubscriptions() {
+    setLoading(true);
+    return fetch('http://localhost:8080/api/subscriptions')
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch subscriptions');
         return res.json();
       })
-      .then(setData)
+      .then(result => {
+        setData(result);
+        setError(null);
+      })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    loadSubscriptions();
   }, []);
 
   const platforms = useMemo(
@@ -62,46 +79,85 @@ export default function App() {
     setPage(1);
   }
 
-  if (loading) return (
-    <div className="d-flex flex-column min-vh-100">
-      <Navbar />
+  function renderSubscriptionsModule() {
+    if (loading) return (
       <div className="d-flex justify-content-center align-items-center flex-grow-1">
         <div className="spinner-border text-primary" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
       </div>
-    </div>
-  );
+    );
 
-  if (error) return (
-    <div className="d-flex flex-column min-vh-100">
-      <Navbar />
+    if (error) return (
       <div className="d-flex justify-content-center align-items-center flex-grow-1">
         <div className="alert alert-danger">{error}</div>
       </div>
-    </div>
-  );
+    );
 
-  return (
-    <div className="d-flex flex-column min-vh-100">
-      <Navbar />
-      <div className="d-flex flex-grow-1">
+    return (
+      <>
         <FilterSidebar
           filters={filters}
           platforms={platforms}
           onApply={handleApply}
           onClear={handleClear}
         />
-        <SubscriptionTable
-          rows={rows}
-          total={total}
-          sort={sort}
-          onSort={handleSort}
-          page={page}
-          rowsPerPage={rowsPerPage}
-          onPageChange={setPage}
-          onRowsPerPageChange={setRowsPerPage}
-        />
+        <div className="d-flex flex-column flex-grow-1">
+          <div className="d-flex justify-content-end p-2 border-bottom bg-light">
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => setShowAddSubscription(prev => !prev)}
+            >
+              {showAddSubscription ? 'Close' : 'Add Subscription'}
+            </button>
+          </div>
+          {showAddSubscription && (
+            <div className="border-bottom bg-light p-3">
+              <AddSubscriptionForm onCreated={loadSubscriptions} />
+            </div>
+          )}
+          <SubscriptionTable
+            rows={rows}
+            total={total}
+            sort={sort}
+            onSort={handleSort}
+            page={page}
+            rowsPerPage={rowsPerPage}
+            onPageChange={setPage}
+            onRowsPerPageChange={setRowsPerPage}
+            onView={setSelectedSubscriptionId}
+          />
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <div className="d-flex flex-column min-vh-100">
+      <Navbar />
+      <div className="d-flex flex-grow-1">
+        <Sidebar activeModule={activeModule} onSelect={setActiveModule} />
+        <div className="d-flex flex-grow-1">
+          {activeModule === 'subscriptions' && (
+            selectedSubscriptionId ? (
+              <SubscriptionDetail
+                subscriptionId={selectedSubscriptionId}
+                onBack={() => setSelectedSubscriptionId(null)}
+              />
+            ) : renderSubscriptionsModule()
+          )}
+          {activeModule === 'clients' && <ClientsModule />}
+          {activeModule === 'operations' && (
+            <OperationsModule
+              onViewSubscription={id => {
+                setSelectedSubscriptionId(id);
+                setActiveModule('subscriptions');
+              }}
+            />
+          )}
+          {activeModule === 'dashboard' && <DashboardModule />}
+        </div>
       </div>
     </div>
   );

@@ -26,5 +26,9 @@ replay_pid*
 # Brainstorming session files (temp, not for team)
 .superpowers/
 
+# Local AI/process tooling — not for the team source tree
+openspec/changes/
+openspec/specs/
+
 # Local DB credentials — never commit
 backend/src/main/resources/application.properties

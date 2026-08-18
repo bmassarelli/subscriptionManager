@@ -1,11 +1,19 @@
-export const ALL_STATUSES = ['A', 'P'];
+export const ALL_STATUSES = ['AC', 'TR', 'SU', 'EX', 'CA', 'ER'];
 
 export const STATUS_LABELS = {
-  A: 'Active',
-  P: 'Pending',
+  AC: 'Active',
+  TR: 'Trial',
+  SU: 'Suspended',
+  EX: 'Expired',
+  CA: 'Cancelled',
+  ER: 'Error',
 };
 
 export const STATUS_BADGE_CLASSES = {
-  A: 'badge bg-success',
-  P: 'badge bg-warning text-dark',
+  AC: 'badge bg-success',
+  TR: 'badge bg-info text-dark',
+  SU: 'badge bg-warning text-dark',
+  EX: 'badge bg-secondary',
+  CA: 'badge bg-dark',
+  ER: 'badge bg-danger',
 };
