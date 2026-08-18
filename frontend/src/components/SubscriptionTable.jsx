@@ -17,7 +17,7 @@ function SortIndicator({ column, sort }) {
   return <span className="ms-1">{sort.direction === 'asc' ? '↑' : '↓'}</span>;
 }
 
-export default function SubscriptionTable({ rows, total, sort, onSort, page, rowsPerPage, onPageChange, onRowsPerPageChange }) {
+export default function SubscriptionTable({ rows, total, sort, onSort, page, rowsPerPage, onPageChange, onRowsPerPageChange, onView }) {
   const totalPages = Math.ceil(total / rowsPerPage) || 1;
   const from = total === 0 ? 0 : (page - 1) * rowsPerPage + 1;
   const to = Math.min(page * rowsPerPage, total);
@@ -102,7 +102,7 @@ export default function SubscriptionTable({ rows, total, sort, onSort, page, row
                   <td className="text-muted">{row.entryDate}</td>
                   <td>${row.amount.toFixed(2)}</td>
                   <td>
-                    <button className="btn btn-link btn-sm p-0">View</button>
+                    <button className="btn btn-link btn-sm p-0" onClick={() => onView(row.id)}>View</button>
                   </td>
                 </tr>
               ))
