@@ -9,32 +9,57 @@ the API Gateway and ROS Loader for network events and recurring billing.
 ```
 subscriptionManager/
 ├── database/
-│   └── 001-baseline.sql              # Oracle schema — SUBSCRIPTION_MANAGER user
-│                                      # (CLIENT, SUBSCRIPTIONS, PLATFORM, PAYMENT_MODE)
-├── backend/                          # Spring Boot 3, Java 21, Maven
+│   ├── 001-baseline.sql               # Oracle schema — SUBSCRIPTION_MANAGER user
+│   │                                   # (CLIENT, SUBSCRIPTIONS, PLATFORM, PAYMENT_MODE)
+│   ├── 002-lifecycle-actions.sql      # lifecycle-mutable columns + OPERATIONS table
+│   ├── 003-hardening.sql              # PRE_SUSPEND_STATUS + CLIENT email/msisdn uniqueness
+│   └── 004-resources.sql              # RESOURCES table + SEQ_RESOURCE_ID + trigger
+├── backend/                            # Spring Boot 3, Java 21, Maven
 │   └── src/main/
 │       ├── java/com/subscriptionmanager/
 │       │   ├── SubscriptionManagerApplication.java
 │       │   ├── config/CorsConfig.java
 │       │   ├── controller/
-│       │   │   ├── CatalogController.java       # GET /api/platforms, /api/payment-modes
-│       │   │   ├── ClientController.java        # GET/POST /api/clients
-│       │   │   ├── GlobalExceptionHandler.java  # validation + invalid-reference -> 400
-│       │   │   └── SubscriptionController.java  # GET/POST /api/subscriptions
+│       │   │   ├── CatalogController.java             # GET /api/platforms, /api/payment-modes
+│       │   │   ├── ClientController.java              # GET/POST /api/clients
+│       │   │   ├── SubscriptionController.java         # GET/POST /api/subscriptions
+│       │   │   ├── SubscriptionLifecycleController.java # POST lifecycle actions, GET operations,
+│       │   │   │                                         # GET /api/operations (all), subscription detail
+│       │   │   ├── ResourceController.java             # GET/POST/DELETE /api/subscriptions/{id}/resources
+│       │   │   ├── DashboardController.java            # GET /api/dashboard/summary
+│       │   │   └── GlobalExceptionHandler.java         # validation + invalid-reference/not-found -> 400/404
 │       │   ├── dto/
 │       │   │   ├── ClientRequestDTO.java / ClientResponseDTO.java
-│       │   │   ├── SubscriptionDTO.java / SubscriptionRequestDTO.java
-│       │   │   └── PlatformDTO.java / PaymentModeDTO.java
+│       │   │   ├── SubscriptionDTO.java / SubscriptionRequestDTO.java / SubscriptionDetailDTO.java
+│       │   │   ├── PlatformDTO.java / PaymentModeDTO.java
+│       │   │   ├── LifecycleActionRequestDTO.java / LifecycleActionResultDTO.java / OperationDTO.java
+│       │   │   ├── ResourceDTO.java / ResourceRequestDTO.java
+│       │   │   └── DashboardSummaryDTO.java
 │       │   ├── entity/
-│       │   │   ├── Client.java / Subscription.java (full 19-column mapping)
-│       │   │   └── Platform.java / PaymentMode.java
+│       │   │   ├── Client.java / Subscription.java (full column mapping incl. PRE_SUSPEND_STATUS)
+│       │   │   ├── Platform.java / PaymentMode.java
+│       │   │   ├── Operation.java (lifecycle audit trail)
+│       │   │   └── Resource.java (IP/VLAN/CPE/PORT/EQUIPMENT/NODE)
 │       │   ├── repository/
 │       │   │   ├── ClientRepository.java / SubscriptionRepository.java
-│       │   │   └── PlatformRepository.java / PaymentModeRepository.java
-│       │   └── service/
-│       │       ├── ClientService.java / SubscriptionService.java
-│       │       └── InvalidClientReferenceException.java,
-│       │         InvalidPlatformException.java, InvalidPaymentModeException.java
+│       │   │   ├── PlatformRepository.java / PaymentModeRepository.java
+│       │   │   ├── OperationRepository.java / ResourceRepository.java
+│       │   ├── service/
+│       │   │   ├── ClientService.java / SubscriptionService.java
+│       │   │   ├── DashboardService.java              # aggregates counts/status breakdown/recent ops
+│       │   │   ├── OperationMapper.java / OperationRecorder.java
+│       │   │   ├── InvalidClientReferenceException.java, InvalidPlatformException.java,
+│       │   │   │   InvalidPaymentModeException.java, DuplicateClientFieldException.java
+│       │   │   ├── lifecycle/                         # SUSPEND/RECONNECT/CANCEL/CHANGE_PLAN/
+│       │   │   │   ├── LifecycleAction.java, LifecycleActionRegistry.java,   # CHANGE_MSISDN/CHANGE_SIM
+│       │   │   │   ├── LifecycleActionService.java     # actions, one per class implementing LifecycleAction
+│       │   │   │   ├── SuspendAction.java, ReconnectAction.java, CancelAction.java,
+│       │   │   │   ├── ChangePlanAction.java, ChangeMsisdnAction.java, ChangeSimAction.java
+│       │   │   │   └── SubscriptionNotFoundException.java, InvalidLifecycleTransitionException.java,
+│       │   │   │       LifecycleActionValidationException.java, UnknownLifecycleActionException.java
+│       │   │   └── resource/
+│       │   │       ├── ResourceService.java            # plain CRUD, not an auditable lifecycle action
+│       │   │       └── InvalidResourceTypeException.java, ResourceNotFoundException.java
 │       └── resources/
 │           └── application.properties  # ⚠ local only — never commit (see below)
 ├── frontend/                          # React app (Create React App + Bootstrap 5)
@@ -44,17 +69,24 @@ subscriptionManager/
 │       ├── utils/filterSort.js        # Pure functions: applyFilters, applySort, paginate
 │       └── components/
 │           ├── Navbar.jsx             # Brand bar only
-│           ├── Sidebar.jsx            # Left module menu (Subscriptions, Clients)
+│           ├── Sidebar.jsx            # Left module menu (Subscriptions, Clients, Operations, Dashboard)
 │           ├── FilterSidebar.jsx
-│           ├── SubscriptionTable.jsx  # "View" action not yet wired (see roadmap)
+│           ├── SubscriptionTable.jsx  # "View" opens SubscriptionDetail
+│           ├── SubscriptionDetail.jsx # lifecycle actions, history timeline, Resources section
+│           ├── SubscriptionHistoryTimeline.jsx  # chronological ops view; FAILED entries stand out
 │           ├── AddSubscriptionForm.jsx
 │           ├── ClientsModule.jsx
-│           └── AddClientForm.jsx
+│           ├── AddClientForm.jsx
+│           ├── OperationsModule.jsx   # cross-subscription operations list, links back to detail
+│           └── DashboardModule.jsx    # client/subscription counts, status breakdown, recent ops
 ├── postman/                           # Postman collections for the ROS API
-├── openspec/                          # OpenSpec: openspec/specs/ is the archived baseline
-│                                      # (client-management, app-navigation,
-│                                      # subscription-management); openspec/changes/
-│                                      # holds the active Telco-lifecycle roadmap
+├── openspec/                          # OpenSpec: openspec/specs/ holds the current-truth capability
+│                                      # specs (app-navigation, client-management, subscription-management,
+│                                      # subscription-status-model, subscription-lifecycle,
+│                                      # subscription-detail, subscription-audit, subscription-operations,
+│                                      # subscription-dashboard, subscription-resources);
+│                                      # openspec/changes/ is empty — the P3 Telco-lifecycle roadmap
+│                                      # is fully archived under openspec/changes/archive/
 ├── docs/superpowers/                  # Implementation plans and design specs
 └── .claude/                           # Claude Code project config (skills, commands)
 ```
@@ -90,7 +122,7 @@ server.port=8080
 cd frontend
 npm install
 npm start        # http://localhost:3000
-npm test         # run tests (17 tests, all passing)
+npm test         # run tests (61 tests, all passing)
 npm run build    # production build
 ```
 
@@ -100,10 +132,18 @@ codebase anymore.
 
 ## Database
 
-Oracle DB, schema: `SUBSCRIPTION_MANAGER`. Main tables:
+Oracle DB, schema: `SUBSCRIPTION_MANAGER`. All four migrations (`001`–`004`) are
+applied to the live training DB. Main tables:
 
-- `CLIENT` — CLIENT_ID, NAME, LAST_NAME, EMAIL, MSISDN
-- `SUBSCRIPTIONS` — ID, CLIENT_ID, PLATFORM, CONTRACT, STATUS, AMOUNT, dates...
+- `CLIENT` — CLIENT_ID, NAME, LAST_NAME, EMAIL, MSISDN (EMAIL and MSISDN are
+  unique — `UQ_CLIENT_EMAIL`, `UQ_CLIENT_MSISDN`, added in `003-hardening.sql`)
+- `SUBSCRIPTIONS` — ID, CLIENT_ID, PLATFORM, CONTRACT, STATUS, AMOUNT, dates,
+  MSISDN, SIM_ICCID, PRE_SUSPEND_STATUS (remembers status before a suspend, for
+  Reconnect)
+- `OPERATIONS` — lifecycle-action audit trail (added in `002-lifecycle-actions.sql`)
+- `RESOURCES` — ID, SUBSCRIPTION_ID, RESOURCE_TYPE (`IP`/`VLAN`/`CPE`/`PORT`/
+  `EQUIPMENT`/`NODE`), VALUE (added in `004-resources.sql`; MSISDN/SIM_ICCID stay
+  dedicated `SUBSCRIPTIONS` columns rather than living here)
 
 Full column reference is in `README.md`.
 
@@ -121,11 +161,12 @@ Full column reference is in `README.md`.
 > **Important:** `CA` is only ever set by the Cancel Subscription flow (client request).
 > Payment failures result in `EX`, never `CA`.
 
-This is now the single, enforced status model — `frontend/src/constants.js` and the
+This is the single, enforced status model — `frontend/src/constants.js` and the
 backend agree on it. New subscriptions are created in `TR`. `ER` is reserved for a
 future charging/activation pipeline; nothing in the current codebase writes it.
-Lifecycle transitions between these statuses (suspend, reconnect, cancel, etc.) are
-not built yet — see "What's Not Built Yet" and `openspec/changes/` for the roadmap.
+Lifecycle transitions between these statuses (Suspend, Reconnect, Cancel, Change
+Plan, Change MSISDN, Change SIM) are implemented via a single generic action
+endpoint — see `subscription-lifecycle` under Architecture Notes below.
 
 ## Architecture Notes
 
@@ -136,11 +177,13 @@ not built yet — see "What's Not Built Yet" and `openspec/changes/` for the roa
 - Date fields use ISO format `YYYY-MM-DD` — string comparison works for sorting/filtering
 
 ### Backend (Spring Boot)
-- `GET/POST /api/subscriptions`, `GET/POST /api/clients`, `GET /api/platforms`,
-  `GET /api/payment-modes` — no `PUT`/`DELETE` anywhere yet
-- Validation errors and invalid-reference errors (unknown `clientId`/`platform`/
-  `paymentModeId`) both return `400` with a field→message body via
-  `GlobalExceptionHandler` — never a raw `500`
+- `GET/POST /api/subscriptions`, `GET /api/subscriptions/{id}` (full detail),
+  `GET/POST /api/clients`, `GET /api/platforms`, `GET /api/payment-modes` — no
+  `PUT`/`DELETE` for clients or subscriptions themselves yet (see "What's Not
+  Built Yet")
+- Validation errors and invalid-reference/not-found errors (unknown `clientId`/
+  `platform`/`paymentModeId`/subscription id/resource id) return `400`/`404` with
+  a field→message body via `GlobalExceptionHandler` — never a raw `500`
 - `platform` is validated against the `PLATFORM` catalog by name (no DB-level FK);
   `paymentModeId` is a real FK, validated against `PAYMENT_MODE`
 - CORS configured to allow requests from `http://localhost:3000`
@@ -150,6 +193,39 @@ not built yet — see "What's Not Built Yet" and `openspec/changes/` for the roa
   (`IdentifierGenerationException`); `PLATFORM`/`PAYMENT_MODE` use `IDENTITY`
   instead, matching their `GENERATED BY DEFAULT AS IDENTITY` columns
 - `SubscriptionDTO` is a flat projection built from the JOIN; no lazy-loading issues
+
+#### Lifecycle actions (`subscription-lifecycle`, `subscription-detail`)
+- `SubscriptionLifecycleController` exposes one generic action endpoint (`type` +
+  action-specific payload) plus `GET /api/subscriptions/{id}` (detail),
+  `GET /api/subscriptions/{id}/operations`, and `GET /api/operations` (all,
+  cross-subscription, most recent first)
+- Every action (`SUSPEND`, `RECONNECT`, `CANCEL`, `CHANGE_PLAN`, `CHANGE_MSISDN`,
+  `CHANGE_SIM`) is a `LifecycleAction` implementation registered in
+  `LifecycleActionRegistry`, run through one pipeline in `LifecycleActionService`:
+  validate current status against the transition table, validate the action's
+  data, record an `Operation` (via `OperationRecorder`), apply the change
+- `Suspend` stashes the pre-suspend status in `PRE_SUSPEND_STATUS` so `Reconnect`
+  can restore it
+- `Operation` → `OperationDTO` mapping lives in the shared `OperationMapper`,
+  reused by both the per-subscription operations list and the dashboard summary
+
+#### Resources (`subscription-resources`)
+- `ResourceController` / `ResourceService`: plain CRUD (`GET`/`POST`/`DELETE` on
+  `/api/subscriptions/{id}/resources`), not a `LifecycleAction` — no `Operation`
+  is recorded for assigning/removing a resource
+- Valid `resourceType`s: `IP`, `VLAN`, `CPE`, `PORT`, `EQUIPMENT`, `NODE`.
+  MSISDN/SIM ICCID intentionally stay on `SUBSCRIPTIONS` (owned by the
+  `CHANGE_MSISDN`/`CHANGE_SIM` lifecycle actions) rather than living in
+  `RESOURCES` — see the resolved open question in
+  `openspec/changes/archive/2026-08-17-subscription-resources-module/proposal.md`
+
+#### Operations & Dashboard modules (`subscription-operations`, `subscription-dashboard`)
+- `GET /api/operations` (all subscriptions) backs the Operations sidebar module;
+  each row links back to that operation's subscription detail screen
+- `DashboardController`/`DashboardService` expose `GET /api/dashboard/summary`:
+  total clients, total subscriptions, a per-status breakdown (all six statuses
+  always present, even at zero), the most recent operations, and an
+  operation-type distribution — all in one call
 
 ### ROS API (separate service)
 - Base URL: `https://ts-training-2.io/ros-rest/`
@@ -169,13 +245,9 @@ not built yet — see "What's Not Built Yet" and `openspec/changes/` for the roa
 
 ## What's Not Built Yet
 
-- Any subscription lifecycle transition (suspend, reconnect, cancel, change plan,
-  change MSISDN, change SIM) — creation and listing only, for both clients and
-  subscriptions
-- Edit / Delete for clients or subscriptions
-- A subscription detail screen (`SubscriptionTable`'s "View" action exists but does
-  nothing yet)
-- Any cross-subscription operations/audit view, or a dashboard
+- Edit / Delete for clients or subscriptions themselves (creation, listing, and
+  detail view exist; lifecycle actions and resource assignment exist; but there's
+  no way to edit or delete a `CLIENT` or `SUBSCRIPTIONS` row directly)
 - Authentication / authorization
 - Charging/billing, promotions, and payment-received reactivation
 - Real integration with the ROS API or the API Gateway (this app is local-only —
@@ -183,6 +255,10 @@ not built yet — see "What's Not Built Yet" and `openspec/changes/` for the roa
   not something implemented here)
 - Email/SMS notifications
 
-See `openspec/changes/` for the active roadmap (`subscription-foundation` →
-`subscription-lifecycle-actions` → ... ) building toward the items above, in that
-order — each change's `proposal.md` explains its scope and dependencies.
+The Telco-lifecycle roadmap (`subscription-foundation` → `subscription-lifecycle-actions`
+→ `subscription-detail-view` → `subscription-operations-module` →
+`subscription-audit-history` → `subscription-resources-module` →
+`subscription-dashboard`) is complete and fully archived under
+`openspec/changes/archive/`; `openspec/changes/` itself has no active changes.
+`openspec/specs/` holds the current-truth capability specs for everything listed
+above.
