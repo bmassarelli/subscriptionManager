@@ -26,6 +26,9 @@ replay_pid*
 # Brainstorming session files (temp, not for team)
 .superpowers/
 
+# Local git worktrees used for isolated feature work
+.worktrees/
+
 # Local AI/process tooling — not for the team source tree
 openspec/changes/
 openspec/specs/
