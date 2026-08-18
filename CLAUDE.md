@@ -10,31 +10,51 @@ the API Gateway and ROS Loader for network events and recurring billing.
 subscriptionManager/
 ├── database/
 │   └── 001-baseline.sql              # Oracle schema — SUBSCRIPTION_MANAGER user
-├── backend/                          # Spring Boot 3, Java 25, Maven
+│                                      # (CLIENT, SUBSCRIPTIONS, PLATFORM, PAYMENT_MODE)
+├── backend/                          # Spring Boot 3, Java 21, Maven
 │   └── src/main/
 │       ├── java/com/subscriptionmanager/
 │       │   ├── SubscriptionManagerApplication.java
 │       │   ├── config/CorsConfig.java
-│       │   ├── controller/SubscriptionController.java
-│       │   ├── dto/SubscriptionDTO.java
-│       │   ├── entity/Client.java
-│       │   ├── entity/Subscription.java
-│       │   ├── repository/SubscriptionRepository.java
-│       │   └── service/SubscriptionService.java
+│       │   ├── controller/
+│       │   │   ├── CatalogController.java       # GET /api/platforms, /api/payment-modes
+│       │   │   ├── ClientController.java        # GET/POST /api/clients
+│       │   │   ├── GlobalExceptionHandler.java  # validation + invalid-reference -> 400
+│       │   │   └── SubscriptionController.java  # GET/POST /api/subscriptions
+│       │   ├── dto/
+│       │   │   ├── ClientRequestDTO.java / ClientResponseDTO.java
+│       │   │   ├── SubscriptionDTO.java / SubscriptionRequestDTO.java
+│       │   │   └── PlatformDTO.java / PaymentModeDTO.java
+│       │   ├── entity/
+│       │   │   ├── Client.java / Subscription.java (full 19-column mapping)
+│       │   │   └── Platform.java / PaymentMode.java
+│       │   ├── repository/
+│       │   │   ├── ClientRepository.java / SubscriptionRepository.java
+│       │   │   └── PlatformRepository.java / PaymentModeRepository.java
+│       │   └── service/
+│       │       ├── ClientService.java / SubscriptionService.java
+│       │       └── InvalidClientReferenceException.java,
+│       │         InvalidPlatformException.java, InvalidPaymentModeException.java
 │       └── resources/
 │           └── application.properties  # ⚠ local only — never commit (see below)
 ├── frontend/                          # React app (Create React App + Bootstrap 5)
 │   └── src/
-│       ├── App.jsx                    # Root: all filter/sort/page state lives here
-│       ├── mockData.js                # 25 mock subscription records
-│       ├── constants.js               # STATUS_LABELS, STATUS_BADGE_CLASSES, ALL_STATUSES
+│       ├── App.jsx                    # Root: activeModule, subscription list/filter/sort/page state
+│       ├── constants.js               # STATUS_LABELS, STATUS_BADGE_CLASSES, ALL_STATUSES (6-status model)
 │       ├── utils/filterSort.js        # Pure functions: applyFilters, applySort, paginate
 │       └── components/
-│           ├── Navbar.jsx
+│           ├── Navbar.jsx             # Brand bar only
+│           ├── Sidebar.jsx            # Left module menu (Subscriptions, Clients)
 │           ├── FilterSidebar.jsx
-│           └── SubscriptionTable.jsx
+│           ├── SubscriptionTable.jsx  # "View" action not yet wired (see roadmap)
+│           ├── AddSubscriptionForm.jsx
+│           ├── ClientsModule.jsx
+│           └── AddClientForm.jsx
 ├── postman/                           # Postman collections for the ROS API
-├── openspec/                          # OpenSpec change specs and config
+├── openspec/                          # OpenSpec: openspec/specs/ is the archived baseline
+│                                      # (client-management, app-navigation,
+│                                      # subscription-management); openspec/changes/
+│                                      # holds the active Telco-lifecycle roadmap
 ├── docs/superpowers/                  # Implementation plans and design specs
 └── .claude/                           # Claude Code project config (skills, commands)
 ```
@@ -74,9 +94,9 @@ npm test         # run tests (17 tests, all passing)
 npm run build    # production build
 ```
 
-The frontend currently uses mock data (`mockData.js`). When connecting to the backend,
-replace the mock import with a `fetch('http://localhost:8080/api/subscriptions')` call
-in `App.jsx`.
+The frontend is connected to the real backend — `App.jsx` fetches
+`http://localhost:8080/api/subscriptions` on load. There is no mock data in the
+codebase anymore.
 
 ## Database
 
@@ -101,6 +121,12 @@ Full column reference is in `README.md`.
 > **Important:** `CA` is only ever set by the Cancel Subscription flow (client request).
 > Payment failures result in `EX`, never `CA`.
 
+This is now the single, enforced status model — `frontend/src/constants.js` and the
+backend agree on it. New subscriptions are created in `TR`. `ER` is reserved for a
+future charging/activation pipeline; nothing in the current codebase writes it.
+Lifecycle transitions between these statuses (suspend, reconnect, cancel, etc.) are
+not built yet — see "What's Not Built Yet" and `openspec/changes/` for the roadmap.
+
 ## Architecture Notes
 
 ### Frontend
@@ -110,9 +136,19 @@ Full column reference is in `README.md`.
 - Date fields use ISO format `YYYY-MM-DD` — string comparison works for sorting/filtering
 
 ### Backend (Spring Boot)
-- Exposes `GET /api/subscriptions` — returns all subscriptions joined with client data
+- `GET/POST /api/subscriptions`, `GET/POST /api/clients`, `GET /api/platforms`,
+  `GET /api/payment-modes` — no `PUT`/`DELETE` anywhere yet
+- Validation errors and invalid-reference errors (unknown `clientId`/`platform`/
+  `paymentModeId`) both return `400` with a field→message body via
+  `GlobalExceptionHandler` — never a raw `500`
+- `platform` is validated against the `PLATFORM` catalog by name (no DB-level FK);
+  `paymentModeId` is a real FK, validated against `PAYMENT_MODE`
 - CORS configured to allow requests from `http://localhost:3000`
-- JPA with Oracle dialect — DDL auto is `none` (schema managed by SQL scripts)
+- JPA with Oracle dialect — DDL auto is `none` (schema managed by SQL scripts).
+  Entities generated via `@GeneratedValue(SEQUENCE)` mapped to the matching
+  `SEQ_*` sequence — every entity needs this or `persist()` fails
+  (`IdentifierGenerationException`); `PLATFORM`/`PAYMENT_MODE` use `IDENTITY`
+  instead, matching their `GENERATED BY DEFAULT AS IDENTITY` columns
 - `SubscriptionDTO` is a flat projection built from the JOIN; no lazy-loading issues
 
 ### ROS API (separate service)
@@ -133,9 +169,20 @@ Full column reference is in `README.md`.
 
 ## What's Not Built Yet
 
-- Create / Edit / Delete subscriptions via the frontend
+- Any subscription lifecycle transition (suspend, reconnect, cancel, change plan,
+  change MSISDN, change SIM) — creation and listing only, for both clients and
+  subscriptions
+- Edit / Delete for clients or subscriptions
+- A subscription detail screen (`SubscriptionTable`'s "View" action exists but does
+  nothing yet)
+- Any cross-subscription operations/audit view, or a dashboard
 - Authentication / authorization
-- Frontend connected to real backend (currently uses mock data)
-- Reconnect / Suspend endpoints in the ROS API
-- Retry mechanism for failed charges
+- Charging/billing, promotions, and payment-received reactivation
+- Real integration with the ROS API or the API Gateway (this app is local-only —
+  see `README.md`'s API section, which documents that *external* system's contract,
+  not something implemented here)
 - Email/SMS notifications
+
+See `openspec/changes/` for the active roadmap (`subscription-foundation` →
+`subscription-lifecycle-actions` → ... ) building toward the items above, in that
+order — each change's `proposal.md` explains its scope and dependencies.
