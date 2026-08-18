@@ -49,6 +49,27 @@ Stores customer information: email, first name, last name, and MSISDN.
 | ERROR_CODE         | VARCHAR2(400)   | Error code if charging fails                             |
 | ERROR_MSG          | VARCHAR2(4000)  | Error message if charging fails                          |
 | PROMOTION          | NUMBER          | Promotion ID from the promotions application             |
+| PAYMENT_MODE_ID    | NUMBER          | FK to `PAYMENT_MODE` — set on creation, optional          |
+| MSISDN             | VARCHAR2(400)   | This subscription's own phone number (set via the `CHANGE_MSISDN` lifecycle action; distinct from the client's contact MSISDN on `CLIENT`) |
+| SIM_ICCID          | VARCHAR2(400)   | This subscription's SIM/eSIM identifier (set via the `CHANGE_SIM` lifecycle action) |
+
+### `OPERATIONS`
+
+Local audit trail for every lifecycle action executed against a subscription
+(including its initial creation). Not part of the ROS API — this is the
+Subscription Manager app's own record of what happened and when.
+
+| Column           | Type            | Description                                              |
+|------------------|-----------------|-----------------------------------------------------------|
+| ID               | NUMBER PK       | Sequence-generated operation ID                          |
+| SUBSCRIPTION_ID  | NUMBER FK       | Reference to the subscription                            |
+| OPERATION_TYPE   | VARCHAR2(50)    | `CREATE`, `SUSPEND`, `RECONNECT`, `CANCEL`, `CHANGE_PLAN`, `CHANGE_MSISDN`, or `CHANGE_SIM` |
+| STATUS           | VARCHAR2(20)    | `COMPLETED` or `FAILED`                                   |
+| CREATED_DATE     | DATE            | When the operation was attempted                          |
+| UPDATED_DATE     | DATE            | Currently always equal to `CREATED_DATE`                  |
+| ERROR_MESSAGE    | VARCHAR2(4000)  | Set only when `STATUS = FAILED`                           |
+| DESCRIPTION      | VARCHAR2(4000)  | Human-readable summary of the change (e.g., `"AC -> SU"`) |
+| OPERATION_DATA   | VARCHAR2(4000)  | Raw request data for the action (currently a Java `Map.toString()`, not JSON) |
 
 ### Subscription Statuses
 
@@ -62,6 +83,27 @@ Stores customer information: email, first name, last name, and MSISDN.
 | ER   | Error       | A processing error occurred during charging or activation                |
 
 > **Important:** `CA` is exclusively set when the **client requests cancellation**. Payment failures must never result in a `CA` status — they result in `EX` instead.
+
+---
+
+## Locally Implemented (this app)
+
+Everything below this point documents the **external** ROS/API Gateway contract —
+none of it is integrated here. What Subscription Manager itself actually implements
+today, purely locally against its own database:
+
+- `GET/POST /api/clients`, `GET/POST /api/subscriptions`, `GET /api/subscriptions/{id}`
+- `GET /api/platforms`, `GET /api/payment-modes`
+- `POST /api/subscriptions/{id}/actions` — a generic lifecycle-action endpoint
+  (`SUSPEND`, `RECONNECT`, `CANCEL`, `CHANGE_PLAN`, `CHANGE_MSISDN`, `CHANGE_SIM`)
+  that validates the transition against the status table above, applies the
+  change, and records it — see the `OPERATIONS` table above
+- `GET /api/subscriptions/{id}/operations` — that subscription's operation history
+- A frontend detail screen (per subscription) that triggers those actions
+
+New subscriptions are created in `TR`; there is no local implementation of
+charging, promotions, or the `EX`/`ER` transitions yet — see "Planned / Future
+Features" below.
 
 ---
 
