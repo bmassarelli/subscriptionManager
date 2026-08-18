@@ -14,10 +14,12 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -33,6 +35,27 @@ class SubscriptionControllerTest {
 
     @MockBean
     private SubscriptionService subscriptionService;
+
+    @Test
+    void listsAllSubscriptions() throws Exception {
+        when(subscriptionService.getAll()).thenReturn(List.of(
+                new SubscriptionDTO(1L, "John Doe", "john.doe@example.com", "+11234567890",
+                        "MOBILE_BSCS9", "CONTR_00001", "TR", LocalDate.now(), new BigDecimal("29.75"))));
+
+        mockMvc.perform(get("/api/subscriptions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(1));
+    }
+
+    @Test
+    void listsEmptyWhenNoSubscriptionsExist() throws Exception {
+        when(subscriptionService.getAll()).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/subscriptions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
 
     @Test
     void createsSubscriptionAndReturnsGeneratedIdAndTrialStatus() throws Exception {

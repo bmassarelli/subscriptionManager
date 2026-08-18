@@ -3,8 +3,11 @@ package com.subscriptionmanager.controller;
 import com.subscriptionmanager.dto.LifecycleActionResultDTO;
 import com.subscriptionmanager.dto.OperationDTO;
 import com.subscriptionmanager.dto.SubscriptionDTO;
+import com.subscriptionmanager.service.lifecycle.InvalidLifecycleTransitionException;
 import com.subscriptionmanager.service.lifecycle.LifecycleActionService;
+import com.subscriptionmanager.service.lifecycle.LifecycleActionValidationException;
 import com.subscriptionmanager.service.lifecycle.SubscriptionNotFoundException;
+import com.subscriptionmanager.service.lifecycle.UnknownLifecycleActionException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -77,6 +80,43 @@ class SubscriptionLifecycleControllerTest {
                         .contentType("application/json")
                         .content("{\"type\":\"SUSPEND\"}"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void returns400ForUnknownActionType() throws Exception {
+        when(service.execute(eq(1L), eq("FOO"), any()))
+                .thenThrow(new UnknownLifecycleActionException("Unknown action type: FOO"));
+
+        mockMvc.perform(post("/api/subscriptions/1/actions")
+                        .contentType("application/json")
+                        .content("{\"type\":\"FOO\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.type").exists());
+    }
+
+    @Test
+    void returns409ForInvalidTransition() throws Exception {
+        when(service.execute(eq(1L), eq("RECONNECT"), any()))
+                .thenThrow(new InvalidLifecycleTransitionException(
+                        "Cannot apply RECONNECT to a subscription with status AC"));
+
+        mockMvc.perform(post("/api/subscriptions/1/actions")
+                        .contentType("application/json")
+                        .content("{\"type\":\"RECONNECT\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").exists());
+    }
+
+    @Test
+    void returns400ForActionValidationFailure() throws Exception {
+        when(service.execute(eq(1L), eq("CHANGE_MSISDN"), any()))
+                .thenThrow(new LifecycleActionValidationException("msisdn", "msisdn must be a valid phone number"));
+
+        mockMvc.perform(post("/api/subscriptions/1/actions")
+                        .contentType("application/json")
+                        .content("{\"type\":\"CHANGE_MSISDN\",\"msisdn\":\"abc\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.msisdn").exists());
     }
 
     @Test

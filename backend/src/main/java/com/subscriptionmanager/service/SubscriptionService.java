@@ -4,11 +4,9 @@ import com.subscriptionmanager.dto.SubscriptionDTO;
 import com.subscriptionmanager.dto.SubscriptionDetailDTO;
 import com.subscriptionmanager.dto.SubscriptionRequestDTO;
 import com.subscriptionmanager.entity.Client;
-import com.subscriptionmanager.entity.Operation;
 import com.subscriptionmanager.entity.PaymentMode;
 import com.subscriptionmanager.entity.Subscription;
 import com.subscriptionmanager.repository.ClientRepository;
-import com.subscriptionmanager.repository.OperationRepository;
 import com.subscriptionmanager.repository.PaymentModeRepository;
 import com.subscriptionmanager.repository.PlatformRepository;
 import com.subscriptionmanager.repository.SubscriptionRepository;
@@ -17,7 +15,6 @@ import com.subscriptionmanager.service.lifecycle.SubscriptionNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,17 +25,17 @@ public class SubscriptionService {
     private final ClientRepository clientRepository;
     private final PlatformRepository platformRepository;
     private final PaymentModeRepository paymentModeRepository;
-    private final OperationRepository operationRepository;
+    private final OperationRecorder operationRecorder;
     private final LifecycleActionRegistry actionRegistry;
 
     public SubscriptionService(SubscriptionRepository repository, ClientRepository clientRepository,
                                 PlatformRepository platformRepository, PaymentModeRepository paymentModeRepository,
-                                OperationRepository operationRepository, LifecycleActionRegistry actionRegistry) {
+                                OperationRecorder operationRecorder, LifecycleActionRegistry actionRegistry) {
         this.repository = repository;
         this.clientRepository = clientRepository;
         this.platformRepository = platformRepository;
         this.paymentModeRepository = paymentModeRepository;
-        this.operationRepository = operationRepository;
+        this.operationRecorder = operationRecorder;
         this.actionRegistry = actionRegistry;
     }
 
@@ -69,14 +66,8 @@ public class SubscriptionService {
         }
 
         Subscription saved = repository.save(subscription);
-        recordCreateOperation(saved);
+        operationRecorder.record(saved, "CREATE", "COMPLETED", null, "Subscription created", null);
         return toDTO(saved);
-    }
-
-    private void recordCreateOperation(Subscription subscription) {
-        LocalDateTime now = LocalDateTime.now();
-        operationRepository.save(new Operation(subscription, "CREATE", "COMPLETED",
-                now, now, null, "Subscription created", null));
     }
 
     public SubscriptionDetailDTO getById(Long id) {

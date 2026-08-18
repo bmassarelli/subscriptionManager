@@ -3,6 +3,7 @@ package com.subscriptionmanager.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.subscriptionmanager.dto.ClientResponseDTO;
 import com.subscriptionmanager.service.ClientService;
+import com.subscriptionmanager.service.DuplicateClientFieldException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -108,6 +109,42 @@ class ClientControllerTest {
                 "lastName", "Doe",
                 "email", "john.doe@example.com",
                 "msisdn", "not-a-phone-number");
+
+        mockMvc.perform(post("/api/clients")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.msisdn").exists());
+    }
+
+    @Test
+    void rejectsDuplicateEmail() throws Exception {
+        when(clientService.create(any()))
+                .thenThrow(new DuplicateClientFieldException("email", "A client with this email already exists"));
+
+        Map<String, String> body = Map.of(
+                "name", "John",
+                "lastName", "Doe",
+                "email", "john.doe@example.com",
+                "msisdn", "+11234567890");
+
+        mockMvc.perform(post("/api/clients")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.email").exists());
+    }
+
+    @Test
+    void rejectsDuplicateMsisdn() throws Exception {
+        when(clientService.create(any()))
+                .thenThrow(new DuplicateClientFieldException("msisdn", "A client with this msisdn already exists"));
+
+        Map<String, String> body = Map.of(
+                "name", "John",
+                "lastName", "Doe",
+                "email", "john.doe@example.com",
+                "msisdn", "+11234567890");
 
         mockMvc.perform(post("/api/clients")
                         .contentType("application/json")

@@ -23,6 +23,7 @@ public class SuspendAction implements LifecycleAction {
     @Override
     public String apply(Subscription subscription, Map<String, Object> data) {
         String from = subscription.getStatus();
+        subscription.setPreSuspendStatus(from);
         subscription.setStatus("SU");
         return from + " -> SU";
     }

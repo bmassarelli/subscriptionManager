@@ -6,11 +6,11 @@ import com.subscriptionmanager.entity.Operation;
 import com.subscriptionmanager.entity.Subscription;
 import com.subscriptionmanager.repository.OperationRepository;
 import com.subscriptionmanager.repository.SubscriptionRepository;
+import com.subscriptionmanager.service.OperationRecorder;
 import com.subscriptionmanager.service.SubscriptionService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -20,15 +20,18 @@ public class LifecycleActionService {
 
     private final SubscriptionRepository subscriptionRepository;
     private final OperationRepository operationRepository;
+    private final OperationRecorder operationRecorder;
     private final SubscriptionService subscriptionService;
     private final LifecycleActionRegistry registry;
 
     public LifecycleActionService(SubscriptionRepository subscriptionRepository,
                                    OperationRepository operationRepository,
+                                   OperationRecorder operationRecorder,
                                    SubscriptionService subscriptionService,
                                    LifecycleActionRegistry registry) {
         this.subscriptionRepository = subscriptionRepository;
         this.operationRepository = operationRepository;
+        this.operationRecorder = operationRecorder;
         this.subscriptionService = subscriptionService;
         this.registry = registry;
     }
@@ -51,14 +54,14 @@ public class LifecycleActionService {
         try {
             action.validate(subscription, data);
         } catch (LifecycleActionValidationException e) {
-            recordOperation(subscription, type, "FAILED", e.getMessage(), null, data);
+            operationRecorder.record(subscription, type, "FAILED", e.getMessage(), null, data);
             throw e;
         }
 
         String description = action.apply(subscription, data);
         subscription.setModifyDate(LocalDate.now());
         Subscription saved = subscriptionRepository.save(subscription);
-        Operation operation = recordOperation(saved, type, "COMPLETED", null, description, data);
+        Operation operation = operationRecorder.record(saved, type, "COMPLETED", null, description, data);
 
         return new LifecycleActionResultDTO(subscriptionService.toDTO(saved), toOperationDTO(operation));
     }
@@ -68,14 +71,6 @@ public class LifecycleActionService {
                 .stream()
                 .map(this::toOperationDTO)
                 .collect(Collectors.toList());
-    }
-
-    private Operation recordOperation(Subscription subscription, String type, String status,
-                                       String errorMessage, String description, Map<String, Object> data) {
-        LocalDateTime now = LocalDateTime.now();
-        Operation operation = new Operation(subscription, type, status, now, now,
-                errorMessage, description, data == null ? null : data.toString());
-        return operationRepository.save(operation);
     }
 
     private OperationDTO toOperationDTO(Operation o) {

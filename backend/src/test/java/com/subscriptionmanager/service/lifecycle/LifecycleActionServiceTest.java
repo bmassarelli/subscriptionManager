@@ -1,5 +1,6 @@
 package com.subscriptionmanager.service.lifecycle;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.subscriptionmanager.dto.OperationDTO;
 import com.subscriptionmanager.entity.Client;
 import com.subscriptionmanager.entity.Operation;
@@ -8,6 +9,7 @@ import com.subscriptionmanager.entity.Subscription;
 import com.subscriptionmanager.repository.OperationRepository;
 import com.subscriptionmanager.repository.PlatformRepository;
 import com.subscriptionmanager.repository.SubscriptionRepository;
+import com.subscriptionmanager.service.OperationRecorder;
 import com.subscriptionmanager.service.SubscriptionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,7 +50,9 @@ class LifecycleActionServiceTest {
                 new ChangeSimAction()
         );
         LifecycleActionRegistry registry = new LifecycleActionRegistry(actions);
-        service = new LifecycleActionService(subscriptionRepository, operationRepository, subscriptionService, registry);
+        OperationRecorder operationRecorder = new OperationRecorder(operationRepository, new ObjectMapper());
+        service = new LifecycleActionService(subscriptionRepository, operationRepository, operationRecorder,
+                subscriptionService, registry);
 
         lenient().when(subscriptionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(operationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -95,11 +99,38 @@ class LifecycleActionServiceTest {
     }
 
     @Test
+    void reconnectRestoresStatusFromBeforeSuspension() {
+        Subscription subscription = buildSubscription("TR");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        service.execute(1L, "SUSPEND", Map.of());
+        assertEquals("SU", subscription.getStatus());
+        assertEquals("TR", subscription.getPreSuspendStatus());
+
+        service.execute(1L, "RECONNECT", Map.of());
+
+        assertEquals("TR", subscription.getStatus());
+        assertNull(subscription.getPreSuspendStatus());
+    }
+
+    @Test
     void rejectsReconnectOnIneligibleStatus() {
         Subscription subscription = buildSubscription("AC");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
 
         assertThrows(InvalidLifecycleTransitionException.class, () -> service.execute(1L, "RECONNECT", Map.of()));
+    }
+
+    @Test
+    void recordsOperationDataAsValidJson() {
+        Subscription subscription = buildSubscription("AC");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        service.execute(1L, "CANCEL", Map.of("immediate", true));
+
+        ArgumentCaptor<Operation> captor = ArgumentCaptor.forClass(Operation.class);
+        verify(operationRepository).save(captor.capture());
+        assertEquals("{\"immediate\":true}", captor.getValue().getOperationData());
     }
 
     @Test

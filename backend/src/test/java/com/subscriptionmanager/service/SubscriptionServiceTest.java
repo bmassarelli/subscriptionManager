@@ -1,5 +1,6 @@
 package com.subscriptionmanager.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.subscriptionmanager.dto.SubscriptionDetailDTO;
 import com.subscriptionmanager.dto.SubscriptionRequestDTO;
 import com.subscriptionmanager.entity.Client;
@@ -42,8 +43,9 @@ class SubscriptionServiceTest {
     @Mock private LifecycleActionRegistry actionRegistry;
 
     private SubscriptionService newService() {
+        OperationRecorder operationRecorder = new OperationRecorder(operationRepository, new ObjectMapper());
         return new SubscriptionService(subscriptionRepository, clientRepository, platformRepository,
-                paymentModeRepository, operationRepository, actionRegistry);
+                paymentModeRepository, operationRecorder, actionRegistry);
     }
 
     @Test

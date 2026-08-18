@@ -26,6 +26,13 @@ public class ClientService {
     }
 
     public ClientResponseDTO create(ClientRequestDTO request) {
+        if (repository.existsByEmail(request.getEmail())) {
+            throw new DuplicateClientFieldException("email", "A client with this email already exists");
+        }
+        if (repository.existsByMsisdn(request.getMsisdn())) {
+            throw new DuplicateClientFieldException("msisdn", "A client with this msisdn already exists");
+        }
+
         Client client = new Client(null, request.getName(), request.getLastName(),
                 request.getEmail(), request.getMsisdn());
         Client saved = repository.save(client);

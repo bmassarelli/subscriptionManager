@@ -82,6 +82,9 @@ public class Subscription {
     @Column(name = "SIM_ICCID")
     private String simIccid;
 
+    @Column(name = "PRE_SUSPEND_STATUS")
+    private String preSuspendStatus;
+
     public Subscription() {
     }
 
@@ -119,6 +122,7 @@ public class Subscription {
     public PaymentMode getPaymentMode() { return paymentMode; }
     public String getMsisdn() { return msisdn; }
     public String getSimIccid() { return simIccid; }
+    public String getPreSuspendStatus() { return preSuspendStatus; }
 
     public void setId(Long id) { this.id = id; }
     public void setClient(Client client) { this.client = client; }
@@ -143,4 +147,5 @@ public class Subscription {
     public void setPaymentMode(PaymentMode paymentMode) { this.paymentMode = paymentMode; }
     public void setMsisdn(String msisdn) { this.msisdn = msisdn; }
     public void setSimIccid(String simIccid) { this.simIccid = simIccid; }
+    public void setPreSuspendStatus(String preSuspendStatus) { this.preSuspendStatus = preSuspendStatus; }
 }

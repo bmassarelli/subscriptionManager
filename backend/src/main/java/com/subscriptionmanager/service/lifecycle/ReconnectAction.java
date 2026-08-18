@@ -23,7 +23,9 @@ public class ReconnectAction implements LifecycleAction {
     @Override
     public String apply(Subscription subscription, Map<String, Object> data) {
         String from = subscription.getStatus();
-        subscription.setStatus("AC");
-        return from + " -> AC";
+        String to = subscription.getPreSuspendStatus() != null ? subscription.getPreSuspendStatus() : "AC";
+        subscription.setStatus(to);
+        subscription.setPreSuspendStatus(null);
+        return from + " -> " + to;
     }
 }
