@@ -30,10 +30,17 @@ const OPERATIONS = [
     description: 'Subscription created' },
 ];
 
+const RESOURCES = [
+  { id: 1, subscriptionId: 1, resourceType: 'IP', value: '10.0.0.1' },
+];
+
 function mockFetch(overrides = {}) {
-  global.fetch = jest.fn((url) => {
+  global.fetch = jest.fn((url, options = {}) => {
     if (url.endsWith('/operations')) {
       return Promise.resolve({ ok: true, json: async () => overrides.operations ?? OPERATIONS });
+    }
+    if (url.endsWith('/resources') && (!options.method || options.method === 'GET')) {
+      return Promise.resolve({ ok: true, json: async () => overrides.resources ?? RESOURCES });
     }
     if (url.includes('/api/platforms')) {
       return Promise.resolve({ ok: true, json: async () => overrides.platforms ?? [{ id: 1, name: 'FIXED_BSCS7' }] });
@@ -49,14 +56,15 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-test('renders fetched subscription data and operation history', async () => {
+test('renders fetched subscription data and operation history as a timeline', async () => {
   mockFetch();
   render(<SubscriptionDetail subscriptionId={1} onBack={jest.fn()} />);
 
   expect(await screen.findByText('John Doe')).toBeInTheDocument();
   expect(screen.getByText('MOBILE_BSCS9')).toBeInTheDocument();
   expect(screen.getByText('CONTR_001')).toBeInTheDocument();
-  expect(screen.getByText('Subscription created')).toBeInTheDocument();
+  expect(screen.getByRole('list')).toBeInTheDocument();
+  expect(screen.getByRole('listitem')).toHaveTextContent('Subscription created');
 });
 
 test('renders only the fetched available actions as buttons', async () => {
@@ -87,6 +95,60 @@ test('submitting an action successfully refreshes the screen', async () => {
   userEvent.click(screen.getByRole('button', { name: /^submit$/i }));
 
   await waitFor(() => expect(screen.getByRole('button', { name: 'Reconnect' })).toBeInTheDocument());
+});
+
+test('renders fetched resources', async () => {
+  mockFetch();
+  render(<SubscriptionDetail subscriptionId={1} onBack={jest.fn()} />);
+  await screen.findByText('John Doe');
+
+  expect(screen.getByText('IP')).toBeInTheDocument();
+  expect(screen.getByText('10.0.0.1')).toBeInTheDocument();
+});
+
+test('shows an empty-state message when no resources are assigned', async () => {
+  mockFetch({ resources: [] });
+  render(<SubscriptionDetail subscriptionId={1} onBack={jest.fn()} />);
+  await screen.findByText('John Doe');
+
+  expect(screen.getByText(/no resources assigned yet/i)).toBeInTheDocument();
+});
+
+test('assigning a resource refreshes the resources list', async () => {
+  mockFetch({ resources: [] });
+  render(<SubscriptionDetail subscriptionId={1} onBack={jest.fn()} />);
+  await screen.findByText('John Doe');
+  expect(await screen.findByText(/no resources assigned yet/i)).toBeInTheDocument();
+
+  userEvent.click(screen.getByRole('button', { name: 'Add Resource' }));
+  userEvent.type(screen.getByLabelText('Value'), '10.0.0.1');
+
+  global.fetch
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => ({}) })) // POST
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => BASE_DETAIL })) // refresh detail
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => OPERATIONS })) // refresh operations
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => RESOURCES })); // refresh resources
+
+  userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+
+  expect(await screen.findByText('10.0.0.1')).toBeInTheDocument();
+});
+
+test('removing a resource refreshes the resources list', async () => {
+  mockFetch();
+  render(<SubscriptionDetail subscriptionId={1} onBack={jest.fn()} />);
+  await screen.findByText('John Doe');
+  expect(await screen.findByText('10.0.0.1')).toBeInTheDocument();
+
+  global.fetch
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => ({}) })) // DELETE
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => BASE_DETAIL })) // refresh detail
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => OPERATIONS })) // refresh operations
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => [] })); // refresh resources (empty)
+
+  userEvent.click(screen.getByRole('button', { name: 'Remove' }));
+
+  expect(await screen.findByText(/no resources assigned yet/i)).toBeInTheDocument();
 });
 
 test('a rejected action shows its error without changing the displayed data', async () => {

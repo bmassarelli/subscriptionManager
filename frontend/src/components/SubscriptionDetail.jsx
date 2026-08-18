@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { STATUS_LABELS, STATUS_BADGE_CLASSES } from '../constants';
+import SubscriptionHistoryTimeline from './SubscriptionHistoryTimeline';
 
 const ACTION_LABELS = {
   SUSPEND: 'Suspend',
@@ -10,9 +11,12 @@ const ACTION_LABELS = {
   CHANGE_SIM: 'Change SIM',
 };
 
+const RESOURCE_TYPES = ['IP', 'VLAN', 'CPE', 'PORT', 'EQUIPMENT', 'NODE'];
+
 export default function SubscriptionDetail({ subscriptionId, onBack }) {
   const [detail, setDetail] = useState(null);
   const [operations, setOperations] = useState([]);
+  const [resources, setResources] = useState([]);
   const [platforms, setPlatforms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -20,6 +24,11 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
   const [actionValues, setActionValues] = useState({});
   const [actionError, setActionError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showAddResource, setShowAddResource] = useState(false);
+  const [newResourceType, setNewResourceType] = useState(RESOURCE_TYPES[0]);
+  const [newResourceValue, setNewResourceValue] = useState('');
+  const [resourceError, setResourceError] = useState(null);
+  const [resourceSubmitting, setResourceSubmitting] = useState(false);
 
   const loadDetail = useCallback(() => {
     setLoading(true);
@@ -32,10 +41,15 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
         if (!res.ok) throw new Error('Failed to fetch subscription operations');
         return res.json();
       }),
+      fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}/resources`).then(res => {
+        if (!res.ok) throw new Error('Failed to fetch subscription resources');
+        return res.json();
+      }),
     ])
-      .then(([detailResult, operationsResult]) => {
+      .then(([detailResult, operationsResult, resourcesResult]) => {
         setDetail(detailResult);
         setOperations(operationsResult);
+        setResources(resourcesResult);
         setError(null);
       })
       .catch(err => setError(err.message))
@@ -63,6 +77,41 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
     setActiveAction(null);
     setActionValues({});
     setActionError(null);
+  }
+
+  async function submitResource(e) {
+    e.preventDefault();
+    setResourceSubmitting(true);
+    setResourceError(null);
+    try {
+      const res = await fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}/resources`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resourceType: newResourceType, value: newResourceValue }),
+      });
+
+      if (!res.ok) {
+        const errorBody = await res.json();
+        const message = Object.values(errorBody)[0] || 'Failed to add resource';
+        setResourceError(message);
+        return;
+      }
+
+      setNewResourceValue('');
+      setShowAddResource(false);
+      await loadDetail();
+    } catch (err) {
+      setResourceError(err.message);
+    } finally {
+      setResourceSubmitting(false);
+    }
+  }
+
+  async function removeResource(resourceId) {
+    await fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}/resources/${resourceId}`, {
+      method: 'DELETE',
+    });
+    await loadDetail();
   }
 
   async function submitAction(e) {
@@ -235,32 +284,88 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
         )}
       </div>
 
-      <div>
-        <h3 className="h6">History</h3>
-        {operations.length === 0 ? (
-          <div className="text-muted small">No operations recorded yet.</div>
+      <div className="mb-3">
+        <div className="d-flex justify-content-between align-items-center">
+          <h3 className="h6 mb-0">Resources</h3>
+          <button
+            type="button"
+            className="btn btn-outline-primary btn-sm"
+            onClick={() => setShowAddResource(prev => !prev)}
+          >
+            {showAddResource ? 'Close' : 'Add Resource'}
+          </button>
+        </div>
+
+        {showAddResource && (
+          <form className="border rounded p-3 mt-2 bg-light" onSubmit={submitResource}>
+            {resourceError && <div className="alert alert-danger py-2">{resourceError}</div>}
+            <div className="row g-2 align-items-end">
+              <div className="col-auto">
+                <label className="form-label" htmlFor="resource-type">Type</label>
+                <select
+                  id="resource-type"
+                  className="form-select"
+                  value={newResourceType}
+                  onChange={e => setNewResourceType(e.target.value)}
+                >
+                  {RESOURCE_TYPES.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-auto">
+                <label className="form-label" htmlFor="resource-value">Value</label>
+                <input
+                  id="resource-value"
+                  className="form-control"
+                  value={newResourceValue}
+                  onChange={e => setNewResourceValue(e.target.value)}
+                />
+              </div>
+              <div className="col-auto">
+                <button type="submit" className="btn btn-primary btn-sm" disabled={resourceSubmitting}>
+                  {resourceSubmitting ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+
+        {resources.length === 0 ? (
+          <div className="text-muted small mt-2">No resources assigned yet.</div>
         ) : (
-          <table className="table table-sm table-striped">
+          <table className="table table-sm table-striped mt-2">
             <thead>
               <tr>
-                <th>Date</th>
                 <th>Type</th>
-                <th>Description</th>
-                <th>Status</th>
+                <th>Value</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {operations.map(op => (
-                <tr key={op.id}>
-                  <td className="text-muted">{op.createdDate}</td>
-                  <td>{op.operationType}</td>
-                  <td>{op.description || op.errorMessage}</td>
-                  <td>{op.status}</td>
+              {resources.map(resource => (
+                <tr key={resource.id}>
+                  <td>{resource.resourceType}</td>
+                  <td>{resource.value}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn btn-link btn-sm text-danger p-0"
+                      onClick={() => removeResource(resource.id)}
+                    >
+                      Remove
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
+      </div>
+
+      <div>
+        <h3 className="h6">History</h3>
+        <SubscriptionHistoryTimeline operations={operations} />
       </div>
     </div>
   );

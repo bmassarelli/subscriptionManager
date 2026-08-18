@@ -6,6 +6,7 @@ import com.subscriptionmanager.entity.Operation;
 import com.subscriptionmanager.entity.Subscription;
 import com.subscriptionmanager.repository.OperationRepository;
 import com.subscriptionmanager.repository.SubscriptionRepository;
+import com.subscriptionmanager.service.OperationMapper;
 import com.subscriptionmanager.service.OperationRecorder;
 import com.subscriptionmanager.service.SubscriptionService;
 import org.springframework.stereotype.Service;
@@ -63,29 +64,20 @@ public class LifecycleActionService {
         Subscription saved = subscriptionRepository.save(subscription);
         Operation operation = operationRecorder.record(saved, type, "COMPLETED", null, description, data);
 
-        return new LifecycleActionResultDTO(subscriptionService.toDTO(saved), toOperationDTO(operation));
+        return new LifecycleActionResultDTO(subscriptionService.toDTO(saved), OperationMapper.toDTO(operation));
     }
 
     public List<OperationDTO> getOperations(Long subscriptionId) {
         return operationRepository.findBySubscriptionIdOrderByCreatedDateDesc(subscriptionId)
                 .stream()
-                .map(this::toOperationDTO)
+                .map(OperationMapper::toDTO)
                 .collect(Collectors.toList());
     }
 
-    private OperationDTO toOperationDTO(Operation o) {
-        String clientName = o.getSubscription().getClient().getName() + " "
-                + o.getSubscription().getClient().getLastName();
-        return new OperationDTO(
-                o.getId(),
-                o.getSubscription().getId(),
-                clientName,
-                o.getOperationType(),
-                o.getStatus(),
-                o.getCreatedDate(),
-                o.getUpdatedDate(),
-                o.getErrorMessage(),
-                o.getDescription()
-        );
+    public List<OperationDTO> getAllOperations() {
+        return operationRepository.findAllByOrderByCreatedDateDesc()
+                .stream()
+                .map(OperationMapper::toDTO)
+                .collect(Collectors.toList());
     }
 }

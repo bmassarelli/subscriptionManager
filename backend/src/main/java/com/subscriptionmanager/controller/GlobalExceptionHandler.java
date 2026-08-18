@@ -8,6 +8,8 @@ import com.subscriptionmanager.service.lifecycle.InvalidLifecycleTransitionExcep
 import com.subscriptionmanager.service.lifecycle.LifecycleActionValidationException;
 import com.subscriptionmanager.service.lifecycle.SubscriptionNotFoundException;
 import com.subscriptionmanager.service.lifecycle.UnknownLifecycleActionException;
+import com.subscriptionmanager.service.resource.InvalidResourceTypeException;
+import com.subscriptionmanager.service.resource.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -68,5 +70,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(LifecycleActionValidationException.class)
     public ResponseEntity<Map<String, String>> handleLifecycleActionValidation(LifecycleActionValidationException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(ex.getField(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidResourceTypeException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidResourceType(InvalidResourceTypeException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("resourceType", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleResourceNotFound(ResourceNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("resourceId", ex.getMessage()));
     }
 }

@@ -32,4 +32,9 @@ public class SubscriptionLifecycleController {
     public List<OperationDTO> getOperations(@PathVariable Long id) {
         return service.getOperations(id);
     }
+
+    @GetMapping("/operations")
+    public List<OperationDTO> getAllOperations() {
+        return service.getAllOperations();
+    }
 }

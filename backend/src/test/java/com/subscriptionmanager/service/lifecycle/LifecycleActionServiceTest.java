@@ -285,4 +285,30 @@ class LifecycleActionServiceTest {
         when(operationRepository.findBySubscriptionIdOrderByCreatedDateDesc(1L)).thenReturn(List.of());
         assertTrue(service.getOperations(1L).isEmpty());
     }
+
+    @Test
+    void listsAllOperationsAcrossSubscriptionsMostRecentFirst() {
+        Subscription subscriptionOne = buildSubscription("AC");
+        Client otherClient = new Client(2L, "Jane", "Roe", "jane@roe.com", "+19998887777");
+        Subscription subscriptionTwo = new Subscription(2L, otherClient, "FIXED_BSCS7", "CONTR_002",
+                "SU", LocalDate.now(), new BigDecimal("5.00"));
+        LocalDateTime earlier = LocalDateTime.now().minusHours(1);
+        LocalDateTime later = LocalDateTime.now();
+        Operation older = new Operation(subscriptionOne, "CREATE", "COMPLETED", earlier, earlier, null, "Subscription created", null);
+        Operation newer = new Operation(subscriptionTwo, "SUSPEND", "COMPLETED", later, later, null, "AC -> SU", null);
+        when(operationRepository.findAllByOrderByCreatedDateDesc()).thenReturn(List.of(newer, older));
+
+        List<OperationDTO> result = service.getAllOperations();
+
+        assertEquals(2, result.size());
+        assertEquals("SUSPEND", result.get(0).getOperationType());
+        assertEquals("Jane Roe", result.get(0).getClientName());
+        assertEquals("CREATE", result.get(1).getOperationType());
+    }
+
+    @Test
+    void listsAllOperationsEmptyWhenNoneRecorded() {
+        when(operationRepository.findAllByOrderByCreatedDateDesc()).thenReturn(List.of());
+        assertTrue(service.getAllOperations().isEmpty());
+    }
 }

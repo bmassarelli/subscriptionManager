@@ -23,6 +23,9 @@ beforeEach(() => {
     if (url.endsWith('/operations')) {
       return Promise.resolve({ ok: true, json: async () => [] });
     }
+    if (url.endsWith('/resources')) {
+      return Promise.resolve({ ok: true, json: async () => [] });
+    }
     if (url.includes('/api/subscriptions/1')) {
       return Promise.resolve({ ok: true, json: async () => DETAIL });
     }

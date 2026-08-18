@@ -1,6 +1,8 @@
 const MODULES = [
   { id: 'subscriptions', label: 'Subscriptions' },
   { id: 'clients', label: 'Clients' },
+  { id: 'operations', label: 'Operations' },
+  { id: 'dashboard', label: 'Dashboard' },
 ];
 
 export default function Sidebar({ activeModule, onSelect }) {

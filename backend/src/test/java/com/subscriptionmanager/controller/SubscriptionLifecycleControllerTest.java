@@ -130,4 +130,28 @@ class SubscriptionLifecycleControllerTest {
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].operationType").value("CREATE"));
     }
+
+    @Test
+    void listsAllOperationsAcrossSubscriptions() throws Exception {
+        OperationDTO first = new OperationDTO(2L, 2L, "Jane Roe", "SUSPEND", "COMPLETED",
+                LocalDateTime.now(), LocalDateTime.now(), null, "AC -> SU");
+        OperationDTO second = new OperationDTO(1L, 1L, "John Doe", "CREATE", "COMPLETED",
+                LocalDateTime.now().minusHours(1), LocalDateTime.now().minusHours(1), null, "Subscription created");
+        when(service.getAllOperations()).thenReturn(List.of(first, second));
+
+        mockMvc.perform(get("/api/operations"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].operationType").value("SUSPEND"))
+                .andExpect(jsonPath("$[1].operationType").value("CREATE"));
+    }
+
+    @Test
+    void listsEmptyWhenNoOperationsExist() throws Exception {
+        when(service.getAllOperations()).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/operations"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
 }

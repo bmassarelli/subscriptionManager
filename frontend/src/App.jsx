@@ -6,6 +6,8 @@ import Sidebar from './components/Sidebar';
 import FilterSidebar from './components/FilterSidebar';
 import SubscriptionTable from './components/SubscriptionTable';
 import ClientsModule from './components/ClientsModule';
+import OperationsModule from './components/OperationsModule';
+import DashboardModule from './components/DashboardModule';
 import AddSubscriptionForm from './components/AddSubscriptionForm';
 import SubscriptionDetail from './components/SubscriptionDetail';
 
@@ -146,6 +148,15 @@ export default function App() {
             ) : renderSubscriptionsModule()
           )}
           {activeModule === 'clients' && <ClientsModule />}
+          {activeModule === 'operations' && (
+            <OperationsModule
+              onViewSubscription={id => {
+                setSelectedSubscriptionId(id);
+                setActiveModule('subscriptions');
+              }}
+            />
+          )}
+          {activeModule === 'dashboard' && <DashboardModule />}
         </div>
       </div>
     </div>
