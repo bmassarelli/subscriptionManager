@@ -27,7 +27,9 @@ replay_pid*
 .superpowers/
 
 # Local git worktrees used for isolated feature work
-.worktrees/
+# (no leading dot: Jest/CRA's default glob matching skips hidden directories,
+# so a dot-prefixed worktree path silently finds zero tests)
+worktrees/
 
 # Local AI/process tooling — not for the team source tree
 openspec/changes/
