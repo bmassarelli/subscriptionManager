@@ -28,7 +28,7 @@ function renderFilterSidebar(overrides = {}) {
 test('typing a search term and applying passes it through', () => {
   const { onApply } = renderFilterSidebar();
 
-  userEvent.type(screen.getByPlaceholderText('Name / Email / MSISDN'), 'alice');
+  userEvent.type(screen.getByPlaceholderText('Name / Email / MSISDN / Contract'), 'alice');
   userEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
   expect(onApply).toHaveBeenCalledWith(expect.objectContaining({ search: 'alice' }));
@@ -61,5 +61,5 @@ test('clicking Clear resets the draft and calls onClear', () => {
   expect(onClear).toHaveBeenCalledWith(expect.objectContaining({
     search: '', platform: 'All', statuses: ALL_STATUSES,
   }));
-  expect(screen.getByPlaceholderText('Name / Email / MSISDN')).toHaveValue('');
+  expect(screen.getByPlaceholderText('Name / Email / MSISDN / Contract')).toHaveValue('');
 });

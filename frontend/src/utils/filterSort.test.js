@@ -1,9 +1,9 @@
 import { applyFilters, applySort, paginate } from './filterSort';
 
 const data = [
-  { id: 1, clientName: 'Alice Smith', email: 'alice@test.com', msisdn: '+111', platform: 'Netflix', status: 'AC', entryDate: '2024-01-10', amount: 9.99 },
-  { id: 2, clientName: 'Bob Jones',   email: 'bob@test.com',   msisdn: '+222', platform: 'Spotify', status: 'TR', entryDate: '2024-01-15', amount: 4.99 },
-  { id: 3, clientName: 'Carol Lee',   email: 'carol@test.com', msisdn: '+333', platform: 'Netflix', status: 'CA', entryDate: '2024-01-20', amount: 7.99 },
+  { id: 1, clientName: 'Alice Smith', email: 'alice@test.com', msisdn: '+111', platform: 'Netflix', status: 'AC', entryDate: '2024-01-10', amount: 9.99, contract: 'CONT-001' },
+  { id: 2, clientName: 'Bob Jones',   email: 'bob@test.com',   msisdn: '+222', platform: 'Spotify', status: 'TR', entryDate: '2024-01-15', amount: 4.99, contract: 'CONT-002' },
+  { id: 3, clientName: 'Carol Lee',   email: 'carol@test.com', msisdn: '+333', platform: 'Netflix', status: 'CA', entryDate: '2024-01-20', amount: 7.99, contract: 'CONT-003' },
 ];
 
 describe('applyFilters', () => {
@@ -64,6 +64,13 @@ describe('applyFilters', () => {
     const result = applyFilters(data, filters);
     expect(result).toHaveLength(2);
     expect(result.map(r => r.id)).toEqual(expect.arrayContaining([1, 2]));
+  });
+
+  test('filters by contract (case-insensitive)', () => {
+    const filters = { search: 'cont-002', statuses: ['AC', 'TR', 'CA', 'IN'], platform: 'All', dateFrom: '', dateTo: '' };
+    const result = applyFilters(data, filters);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(2);
   });
 });
 

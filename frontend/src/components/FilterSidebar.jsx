@@ -28,7 +28,7 @@ export default function FilterSidebar({ filters, platforms, onApply, onClear }) 
         <input
           type="text"
           className="form-control form-control-sm"
-          placeholder="Name / Email / MSISDN"
+          placeholder="Name / Email / MSISDN / Contract"
           value={draft.search}
           onChange={e => setDraft(prev => ({ ...prev, search: e.target.value }))}
         />

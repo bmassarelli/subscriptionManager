@@ -6,7 +6,8 @@ export function applyFilters(data, filters) {
       const matches =
         (item.clientName || '').toLowerCase().includes(q) ||
         (item.email || '').toLowerCase().includes(q) ||
-        (item.msisdn || '').includes(q);
+        (item.msisdn || '').includes(q) ||
+        (item.contract || '').toLowerCase().includes(q);
       if (!matches) return false;
     }
     if (statuses.length === 0) return false;
