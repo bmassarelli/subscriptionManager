@@ -17,3 +17,22 @@ export const STATUS_BADGE_CLASSES = {
   CA: 'badge bg-dark',
   ER: 'badge bg-danger',
 };
+
+export const ALL_OPERATION_TYPES = ['CREATE', 'SUSPEND', 'RECONNECT', 'CANCEL', 'CHANGE_PLAN', 'CHANGE_MSISDN', 'CHANGE_SIM'];
+
+export const OPERATION_TYPE_LABELS = {
+  CREATE: 'Create',
+  SUSPEND: 'Suspend',
+  RECONNECT: 'Reconnect',
+  CANCEL: 'Cancel',
+  CHANGE_PLAN: 'Change Plan',
+  CHANGE_MSISDN: 'Change MSISDN',
+  CHANGE_SIM: 'Change SIM',
+};
+
+export const ALL_OPERATION_STATUSES = ['COMPLETED', 'FAILED'];
+
+export const OPERATION_STATUS_LABELS = {
+  COMPLETED: 'Completed',
+  FAILED: 'Failed',
+};

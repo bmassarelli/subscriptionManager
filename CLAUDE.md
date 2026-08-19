@@ -65,8 +65,11 @@ subscriptionManager/
 ├── frontend/                          # React app (Create React App + Bootstrap 5)
 │   └── src/
 │       ├── App.jsx                    # Root: activeModule, subscription list/filter/sort/page state
-│       ├── constants.js               # STATUS_LABELS, STATUS_BADGE_CLASSES, ALL_STATUSES (6-status model)
-│       ├── utils/filterSort.js        # Pure functions: applyFilters, applySort, paginate
+│       ├── constants.js               # STATUS_LABELS, STATUS_BADGE_CLASSES, ALL_STATUSES (6-status model);
+│       │                              # ALL_OPERATION_TYPES, OPERATION_TYPE_LABELS, ALL_OPERATION_STATUSES,
+│       │                              # OPERATION_STATUS_LABELS
+│       ├── utils/filterSort.js        # Pure functions: applyFilters, applySort, paginate, applyClientSearch,
+│       │                              # applyOperationFilters
 │       └── components/
 │           ├── Navbar.jsx             # Brand bar only
 │           ├── Sidebar.jsx            # Left module menu (Subscriptions, Clients, Operations, Dashboard)
@@ -122,7 +125,7 @@ server.port=8080
 cd frontend
 npm install
 npm start        # http://localhost:3000
-npm test         # run tests (61 tests, all passing)
+npm test         # run tests (81 tests, all passing)
 npm run build    # production build
 ```
 
@@ -171,9 +174,11 @@ endpoint — see `subscription-lifecycle` under Architecture Notes below.
 ## Architecture Notes
 
 ### Frontend
-- All filter/sort/pagination state lives in `App.jsx`
+- **Subscriptions**: filter/sort/pagination state lives in `App.jsx` (must survive navigating into and back out of `SubscriptionDetail`)
+- **Clients**: filter state lives locally in `ClientsModule.jsx` (via `useState`)
+- **Operations**: filter state lives locally in `OperationsModule.jsx` (via `useState`)
 - `FilterSidebar` holds local draft state (pre-Apply form values) — not business state
-- `applyFilters`, `applySort`, `paginate` are pure functions in `utils/filterSort.js`
+- Pure filter helpers: `applyFilters`, `applySort`, `paginate` (Subscriptions); `applyClientSearch` (Clients); `applyOperationFilters` (Operations) in `utils/filterSort.js`
 - Date fields use ISO format `YYYY-MM-DD` — string comparison works for sorting/filtering
 
 ### Backend (Spring Boot)

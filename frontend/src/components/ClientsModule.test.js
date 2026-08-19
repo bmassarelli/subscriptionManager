@@ -61,3 +61,39 @@ test('refreshes the client list after a client is created', async () => {
   await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
   expect(await screen.findByText('John')).toBeInTheDocument();
 });
+
+test('filters the client list as the user types in the search box', async () => {
+  global.fetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ([
+      { clientId: 1, name: 'Alice', lastName: 'Smith', email: 'alice@test.com', msisdn: '+111' },
+      { clientId: 2, name: 'Bob', lastName: 'Jones', email: 'bob@test.com', msisdn: '+222' },
+    ]),
+  });
+
+  render(<ClientsModule />);
+  expect(await screen.findByText('Alice')).toBeInTheDocument();
+
+  userEvent.type(screen.getByPlaceholderText(/Name \/ Last Name \/ Email \/ MSISDN/i), 'bob');
+
+  await waitFor(() => expect(screen.queryByText('Alice')).not.toBeInTheDocument());
+  expect(screen.getByText('Bob')).toBeInTheDocument();
+});
+
+test('shows a no-match message when the search matches nothing, and clearing restores the list', async () => {
+  global.fetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ([
+      { clientId: 1, name: 'Alice', lastName: 'Smith', email: 'alice@test.com', msisdn: '+111' },
+    ]),
+  });
+
+  render(<ClientsModule />);
+  expect(await screen.findByText('Alice')).toBeInTheDocument();
+
+  userEvent.type(screen.getByPlaceholderText(/Name \/ Last Name \/ Email \/ MSISDN/i), 'zzz');
+  expect(await screen.findByText(/no clients match your search/i)).toBeInTheDocument();
+
+  userEvent.click(screen.getByRole('button', { name: /clear search/i }));
+  expect(await screen.findByText('Alice')).toBeInTheDocument();
+});
