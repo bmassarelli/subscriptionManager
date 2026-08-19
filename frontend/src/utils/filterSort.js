@@ -38,3 +38,14 @@ export function paginate(data, page, rowsPerPage) {
   const rows = data.slice(start, start + rowsPerPage);
   return { rows, total };
 }
+
+export function applyClientSearch(clients, search) {
+  if (!search) return clients;
+  const q = search.toLowerCase();
+  return clients.filter(c =>
+    (c.name || '').toLowerCase().includes(q) ||
+    (c.lastName || '').toLowerCase().includes(q) ||
+    (c.email || '').toLowerCase().includes(q) ||
+    (c.msisdn || '').includes(q)
+  );
+}

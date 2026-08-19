@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import AddClientForm from './AddClientForm';
+import { applyClientSearch } from '../utils/filterSort';
 
 export default function ClientsModule() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showAddClient, setShowAddClient] = useState(false);
+  const [search, setSearch] = useState('');
 
   const loadClients = useCallback(() => {
     setLoading(true);
@@ -26,6 +28,11 @@ export default function ClientsModule() {
     loadClients();
   }, [loadClients]);
 
+  const filteredClients = useMemo(
+    () => applyClientSearch(clients, search),
+    [clients, search]
+  );
+
   return (
     <div className="flex-grow-1 p-3">
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -45,6 +52,29 @@ export default function ClientsModule() {
         </div>
       )}
 
+      <div className="mb-3">
+        <div className="input-group" style={{ maxWidth: '320px' }}>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Name / Last Name / Email / MSISDN"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            aria-label="Search clients"
+          />
+          {search && (
+            <button
+              type="button"
+              className="btn btn-outline-secondary"
+              onClick={() => setSearch('')}
+              aria-label="Clear search"
+            >
+              &times;
+            </button>
+          )}
+        </div>
+      </div>
+
       {loading && (
         <div className="d-flex justify-content-center align-items-center py-5">
           <div className="spinner-border text-primary" role="status">
@@ -61,7 +91,11 @@ export default function ClientsModule() {
         <div className="alert alert-secondary">No clients registered yet.</div>
       )}
 
-      {!loading && !error && clients.length > 0 && (
+      {!loading && !error && clients.length > 0 && filteredClients.length === 0 && (
+        <div className="alert alert-secondary">No clients match your search.</div>
+      )}
+
+      {!loading && !error && filteredClients.length > 0 && (
         <table className="table table-striped">
           <thead>
             <tr>
@@ -73,7 +107,7 @@ export default function ClientsModule() {
             </tr>
           </thead>
           <tbody>
-            {clients.map(client => (
+            {filteredClients.map(client => (
               <tr key={client.clientId}>
                 <td>{client.clientId}</td>
                 <td>{client.name}</td>

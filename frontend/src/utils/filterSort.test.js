@@ -1,4 +1,4 @@
-import { applyFilters, applySort, paginate } from './filterSort';
+import { applyFilters, applySort, paginate, applyClientSearch } from './filterSort';
 
 const data = [
   { id: 1, clientName: 'Alice Smith', email: 'alice@test.com', msisdn: '+111', platform: 'Netflix', status: 'AC', entryDate: '2024-01-10', amount: 9.99, contract: 'CONT-001' },
@@ -124,5 +124,44 @@ describe('paginate', () => {
     const { rows, total } = paginate(data, 1, 100);
     expect(rows).toHaveLength(3);
     expect(total).toBe(3);
+  });
+});
+
+describe('applyClientSearch', () => {
+  const clients = [
+    { clientId: 1, name: 'Alice', lastName: 'Smith', email: 'alice@test.com', msisdn: '+111' },
+    { clientId: 2, name: 'Bob', lastName: 'Jones', email: 'bob@test.com', msisdn: '+222' },
+  ];
+
+  test('returns all clients when search is empty', () => {
+    expect(applyClientSearch(clients, '')).toHaveLength(2);
+  });
+
+  test('matches by first name (case-insensitive)', () => {
+    const result = applyClientSearch(clients, 'ALICE');
+    expect(result).toHaveLength(1);
+    expect(result[0].clientId).toBe(1);
+  });
+
+  test('matches by last name', () => {
+    const result = applyClientSearch(clients, 'Jones');
+    expect(result).toHaveLength(1);
+    expect(result[0].clientId).toBe(2);
+  });
+
+  test('matches by email', () => {
+    const result = applyClientSearch(clients, 'bob@');
+    expect(result).toHaveLength(1);
+    expect(result[0].clientId).toBe(2);
+  });
+
+  test('matches by msisdn', () => {
+    const result = applyClientSearch(clients, '+111');
+    expect(result).toHaveLength(1);
+    expect(result[0].clientId).toBe(1);
+  });
+
+  test('returns empty array when nothing matches', () => {
+    expect(applyClientSearch(clients, 'nomatch')).toHaveLength(0);
   });
 });
