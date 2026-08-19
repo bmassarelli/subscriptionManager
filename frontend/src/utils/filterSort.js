@@ -49,3 +49,22 @@ export function applyClientSearch(clients, search) {
     (c.msisdn || '').includes(q)
   );
 }
+
+export function applyOperationFilters(operations, filters) {
+  const { search, types, statuses, dateFrom, dateTo } = filters;
+  return operations.filter(op => {
+    if (search) {
+      const q = search.toLowerCase();
+      const matches =
+        (op.clientName || '').toLowerCase().includes(q) ||
+        String(op.subscriptionId).includes(q);
+      if (!matches) return false;
+    }
+    if (types.length === 0 || !types.includes(op.operationType)) return false;
+    if (statuses.length === 0 || !statuses.includes(op.status)) return false;
+    const created = (op.createdDate || '').slice(0, 10);
+    if (dateFrom && created < dateFrom) return false;
+    if (dateTo && created > dateTo) return false;
+    return true;
+  });
+}

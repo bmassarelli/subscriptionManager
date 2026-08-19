@@ -1,4 +1,4 @@
-import { applyFilters, applySort, paginate, applyClientSearch } from './filterSort';
+import { applyFilters, applySort, paginate, applyClientSearch, applyOperationFilters } from './filterSort';
 
 const data = [
   { id: 1, clientName: 'Alice Smith', email: 'alice@test.com', msisdn: '+111', platform: 'Netflix', status: 'AC', entryDate: '2024-01-10', amount: 9.99, contract: 'CONT-001' },
@@ -163,5 +163,62 @@ describe('applyClientSearch', () => {
 
   test('returns empty array when nothing matches', () => {
     expect(applyClientSearch(clients, 'nomatch')).toHaveLength(0);
+  });
+});
+
+describe('applyOperationFilters', () => {
+  const ops = [
+    { id: 1, subscriptionId: 10, clientName: 'Alice Smith', operationType: 'SUSPEND', status: 'COMPLETED', createdDate: '2026-08-10T09:00:00' },
+    { id: 2, subscriptionId: 20, clientName: 'Bob Jones', operationType: 'CANCEL', status: 'FAILED', createdDate: '2026-08-15T09:00:00' },
+    { id: 3, subscriptionId: 30, clientName: 'Carol Lee', operationType: 'CREATE', status: 'COMPLETED', createdDate: '2026-08-20T09:00:00' },
+  ];
+  const ALL = {
+    search: '',
+    types: ['CREATE', 'SUSPEND', 'RECONNECT', 'CANCEL', 'CHANGE_PLAN', 'CHANGE_MSISDN', 'CHANGE_SIM'],
+    statuses: ['COMPLETED', 'FAILED'],
+    dateFrom: '',
+    dateTo: '',
+  };
+
+  test('returns all when filters are default', () => {
+    expect(applyOperationFilters(ops, ALL)).toHaveLength(3);
+  });
+
+  test('filters by client name search', () => {
+    const result = applyOperationFilters(ops, { ...ALL, search: 'alice' });
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(1);
+  });
+
+  test('filters by subscription id search', () => {
+    const result = applyOperationFilters(ops, { ...ALL, search: '20' });
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(2);
+  });
+
+  test('filters by operation type', () => {
+    const result = applyOperationFilters(ops, { ...ALL, types: ['CANCEL'] });
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(2);
+  });
+
+  test('filters by status', () => {
+    const result = applyOperationFilters(ops, { ...ALL, statuses: ['FAILED'] });
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(2);
+  });
+
+  test('filters by created-date range (inclusive)', () => {
+    const result = applyOperationFilters(ops, { ...ALL, dateFrom: '2026-08-12', dateTo: '2026-08-18' });
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(2);
+  });
+
+  test('returns empty array when no types selected', () => {
+    expect(applyOperationFilters(ops, { ...ALL, types: [] })).toHaveLength(0);
+  });
+
+  test('returns empty array when no statuses selected', () => {
+    expect(applyOperationFilters(ops, { ...ALL, statuses: [] })).toHaveLength(0);
   });
 });
