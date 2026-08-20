@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
-import Navbar from './Navbar';
+import TopBar from './TopBar';
 
 test('renders the brand text', () => {
-  render(<Navbar />);
+  render(<TopBar />);
   expect(screen.getByText('Subscription Manager')).toBeInTheDocument();
 });

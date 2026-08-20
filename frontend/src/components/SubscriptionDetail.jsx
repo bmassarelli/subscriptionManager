@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { STATUS_LABELS, STATUS_BADGE_CLASSES } from '../constants';
+import { STATUS_LABELS, STATUS_TOKEN, statusRailClassName } from '../constants';
 import SubscriptionHistoryTimeline from './SubscriptionHistoryTimeline';
+import StatusBadge from './ui/StatusBadge';
+import LoadingState from './ui/LoadingState';
+import ErrorState from './ui/ErrorState';
+import EmptyState from './ui/EmptyState';
+import DataTable from './ui/DataTable';
 
 const ACTION_LABELS = {
   SUSPEND: 'Suspend',
@@ -141,31 +146,25 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
     }
   }
 
-  if (loading) return (
-    <div className="flex-grow-1 p-3 d-flex justify-content-center align-items-center">
-      <div className="spinner-border text-primary" role="status">
-        <span className="visually-hidden">Loading...</span>
-      </div>
-    </div>
-  );
+  if (loading) return <LoadingState />;
 
   if (error) return (
-    <div className="flex-grow-1 p-3">
+    <div className="page">
       <button className="btn btn-link p-0 mb-3" onClick={onBack}>&larr; Back</button>
-      <div className="alert alert-danger">{error}</div>
+      <ErrorState message={error} />
     </div>
   );
 
   return (
-    <div className="flex-grow-1 p-3 overflow-auto">
+    <div className="page">
       <button className="btn btn-link p-0 mb-3" onClick={onBack}>&larr; Back</button>
 
-      <div className="d-flex justify-content-between align-items-start mb-3">
+      <div className={`${statusRailClassName(detail.status)} d-flex justify-content-between align-items-start mb-3 p-3 bg-white border rounded`}>
         <div>
           <h2 className="h4 mb-1">{detail.clientName}</h2>
-          <div className="text-muted">{detail.email} · {detail.msisdn}</div>
+          <div className="text-muted">{detail.email} · <span className="font-mono">{detail.msisdn}</span></div>
         </div>
-        <span className={STATUS_BADGE_CLASSES[detail.status]}>{STATUS_LABELS[detail.status]}</span>
+        <StatusBadge token={STATUS_TOKEN[detail.status]} label={STATUS_LABELS[detail.status]} />
       </div>
 
       <div className="row g-3 mb-3">
@@ -173,12 +172,12 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
           <h3 className="h6">Subscription</h3>
           <dl className="row mb-0 small">
             <dt className="col-5">Platform</dt><dd className="col-7">{detail.platform}</dd>
-            <dt className="col-5">Contract</dt><dd className="col-7">{detail.contract}</dd>
-            <dt className="col-5">PO</dt><dd className="col-7">{detail.po || '—'}</dd>
+            <dt className="col-5">Contract</dt><dd className="col-7 font-mono">{detail.contract}</dd>
+            <dt className="col-5">PO</dt><dd className="col-7 font-mono">{detail.po || '—'}</dd>
             <dt className="col-5">Payment Mode</dt><dd className="col-7">{detail.paymentModeName || '—'}</dd>
-            <dt className="col-5">Amount</dt><dd className="col-7">${detail.amount.toFixed(2)}</dd>
-            <dt className="col-5">MSISDN</dt><dd className="col-7">{detail.subscriptionMsisdn || '—'}</dd>
-            <dt className="col-5">SIM/eSIM</dt><dd className="col-7">{detail.simIccid || '—'}</dd>
+            <dt className="col-5">Amount</dt><dd className="col-7 font-mono">${detail.amount.toFixed(2)}</dd>
+            <dt className="col-5">MSISDN</dt><dd className="col-7 font-mono">{detail.subscriptionMsisdn || '—'}</dd>
+            <dt className="col-5">SIM/eSIM</dt><dd className="col-7 font-mono">{detail.simIccid || '—'}</dd>
           </dl>
         </div>
         <div className="col-md-6">
@@ -197,7 +196,7 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
       <div className="mb-3">
         <h3 className="h6">Lifecycle Actions</h3>
         {detail.availableActions.length === 0 ? (
-          <div className="text-muted small">No actions available for this subscription's status.</div>
+          <EmptyState message="No actions available for this subscription's status." />
         ) : (
           <div className="d-flex gap-2 flex-wrap">
             {detail.availableActions.map(type => (
@@ -332,34 +331,36 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
         )}
 
         {resources.length === 0 ? (
-          <div className="text-muted small mt-2">No resources assigned yet.</div>
+          <div className="mt-2"><EmptyState message="No resources assigned yet." /></div>
         ) : (
-          <table className="table table-sm table-striped mt-2">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Value</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {resources.map(resource => (
-                <tr key={resource.id}>
-                  <td>{resource.resourceType}</td>
-                  <td>{resource.value}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn btn-link btn-sm text-danger p-0"
-                      onClick={() => removeResource(resource.id)}
-                    >
-                      Remove
-                    </button>
-                  </td>
+          <div className="mt-2">
+            <DataTable>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Value</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {resources.map(resource => (
+                  <tr key={resource.id}>
+                    <td>{resource.resourceType}</td>
+                    <td className="font-mono">{resource.value}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn btn-link btn-sm text-danger p-0"
+                        onClick={() => removeResource(resource.id)}
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </DataTable>
+          </div>
         )}
       </div>
 

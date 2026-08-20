@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import AddClientForm from './AddClientForm';
 import { applyClientSearch } from '../utils/filterSort';
+import LoadingState from './ui/LoadingState';
+import ErrorState from './ui/ErrorState';
+import EmptyState from './ui/EmptyState';
+import DataTable from './ui/DataTable';
 
 export default function ClientsModule() {
   const [clients, setClients] = useState([]);
@@ -34,9 +38,9 @@ export default function ClientsModule() {
   );
 
   return (
-    <div className="flex-grow-1 p-3">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2 className="h4 mb-0">Clients</h2>
+    <div className="page">
+      <div className="page__header">
+        <h2 className="page__title">Clients</h2>
         <button
           type="button"
           className="btn btn-primary"
@@ -47,7 +51,7 @@ export default function ClientsModule() {
       </div>
 
       {showAddClient && (
-        <div className="border rounded p-3 mb-3 bg-light">
+        <div className="toolbar--panel mb-3">
           <AddClientForm onCreated={loadClients} />
         </div>
       )}
@@ -75,28 +79,20 @@ export default function ClientsModule() {
         </div>
       </div>
 
-      {loading && (
-        <div className="d-flex justify-content-center align-items-center py-5">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-        </div>
-      )}
+      {loading && <LoadingState />}
 
-      {!loading && error && (
-        <div className="alert alert-danger">{error}</div>
-      )}
+      {!loading && error && <ErrorState message={error} />}
 
       {!loading && !error && clients.length === 0 && (
-        <div className="alert alert-secondary">No clients registered yet.</div>
+        <EmptyState message="No clients registered yet." />
       )}
 
       {!loading && !error && clients.length > 0 && filteredClients.length === 0 && (
-        <div className="alert alert-secondary">No clients match your search.</div>
+        <EmptyState message="No clients match your search." />
       )}
 
       {!loading && !error && filteredClients.length > 0 && (
-        <table className="table table-striped">
+        <DataTable>
           <thead>
             <tr>
               <th>ID</th>
@@ -109,15 +105,15 @@ export default function ClientsModule() {
           <tbody>
             {filteredClients.map(client => (
               <tr key={client.clientId}>
-                <td>{client.clientId}</td>
+                <td className="font-mono text-muted">{client.clientId}</td>
                 <td>{client.name}</td>
                 <td>{client.lastName}</td>
                 <td>{client.email}</td>
-                <td>{client.msisdn}</td>
+                <td className="font-mono">{client.msisdn}</td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </DataTable>
       )}
     </div>
   );

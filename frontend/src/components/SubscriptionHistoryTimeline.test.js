@@ -36,6 +36,6 @@ test('renders FAILED entries with a distinguishing visual treatment', () => {
   render(<SubscriptionHistoryTimeline operations={[failed]} />);
 
   const item = screen.getByRole('listitem');
-  expect(item).toHaveClass('list-group-item-danger');
-  expect(screen.getByText('FAILED')).toHaveClass('bg-danger');
+  expect(item).toHaveClass('timeline__item--failed');
+  expect(screen.getByText('FAILED')).toHaveClass('status-badge--coral');
 });

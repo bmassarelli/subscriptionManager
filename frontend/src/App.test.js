@@ -15,8 +15,19 @@ const DETAIL = {
   availableActions: ['SUSPEND', 'CANCEL'],
 };
 
+const DASHBOARD_SUMMARY = {
+  clientCount: 1,
+  subscriptionCount: 1,
+  statusCounts: { AC: 1, TR: 0, SU: 0, EX: 0, CA: 0, ER: 0 },
+  recentOperations: [],
+  operationTypeCounts: {},
+};
+
 beforeEach(() => {
   global.fetch = jest.fn((url) => {
+    if (url.endsWith('/api/dashboard/summary')) {
+      return Promise.resolve({ ok: true, json: async () => DASHBOARD_SUMMARY });
+    }
     if (url.endsWith('/api/subscriptions')) {
       return Promise.resolve({ ok: true, json: async () => SUBSCRIPTIONS });
     }
@@ -37,8 +48,17 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+test('shows the Dashboard module by default on load', async () => {
+  render(<App />);
+
+  expect(await screen.findByText('Total Clients')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'true');
+});
+
 test('viewing a subscription and going back returns to the table', async () => {
   render(<App />);
+
+  userEvent.click(screen.getByRole('button', { name: 'Subscriptions' }));
 
   await screen.findByRole('button', { name: /view/i });
 

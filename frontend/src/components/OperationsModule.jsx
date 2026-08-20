@@ -1,9 +1,15 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ALL_OPERATION_TYPES, OPERATION_TYPE_LABELS,
-  ALL_OPERATION_STATUSES, OPERATION_STATUS_LABELS,
+  ALL_OPERATION_STATUSES, OPERATION_STATUS_LABELS, OPERATION_STATUS_TOKEN,
 } from '../constants';
 import { applyOperationFilters } from '../utils/filterSort';
+import FilterPanel from './ui/FilterPanel';
+import LoadingState from './ui/LoadingState';
+import ErrorState from './ui/ErrorState';
+import EmptyState from './ui/EmptyState';
+import DataTable from './ui/DataTable';
+import StatusBadge from './ui/StatusBadge';
 
 const INITIAL_OPERATION_FILTERS = {
   search: '',
@@ -66,12 +72,10 @@ export default function OperationsModule({ onViewSubscription }) {
   );
 
   return (
-    <>
-      <div className="bg-light border-end p-3" style={{ width: '220px', flexShrink: 0 }}>
-        <h6 className="fw-bold mb-3">Filters</h6>
-
-        <div className="mb-3">
-          <label className="form-label small fw-semibold text-secondary">Search</label>
+    <div className="split-layout">
+      <FilterPanel>
+        <div className="filter-panel__group">
+          <label className="filter-panel__label">Search</label>
           <input
             type="text"
             className="form-control form-control-sm"
@@ -81,8 +85,8 @@ export default function OperationsModule({ onViewSubscription }) {
           />
         </div>
 
-        <div className="mb-3">
-          <label className="form-label small fw-semibold text-secondary">Type</label>
+        <div className="filter-panel__group">
+          <label className="filter-panel__label">Type</label>
           {ALL_OPERATION_TYPES.map(type => (
             <div className="form-check" key={type}>
               <input
@@ -99,8 +103,8 @@ export default function OperationsModule({ onViewSubscription }) {
           ))}
         </div>
 
-        <div className="mb-3">
-          <label className="form-label small fw-semibold text-secondary">Status</label>
+        <div className="filter-panel__group">
+          <label className="filter-panel__label">Status</label>
           {ALL_OPERATION_STATUSES.map(status => (
             <div className="form-check" key={status}>
               <input
@@ -117,8 +121,8 @@ export default function OperationsModule({ onViewSubscription }) {
           ))}
         </div>
 
-        <div className="mb-3">
-          <label className="form-label small fw-semibold text-secondary">Created Date</label>
+        <div className="filter-panel__group">
+          <label className="filter-panel__label">Created Date</label>
           <input
             type="date"
             className="form-control form-control-sm mb-1"
@@ -138,35 +142,27 @@ export default function OperationsModule({ onViewSubscription }) {
             Clear
           </button>
         </div>
-      </div>
+      </FilterPanel>
 
-      <div className="flex-grow-1 p-3">
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h2 className="h4 mb-0">Operations</h2>
+      <div className="split-layout__content page">
+        <div className="page__header">
+          <h2 className="page__title">Operations</h2>
         </div>
 
-        {loading && (
-          <div className="d-flex justify-content-center align-items-center py-5">
-            <div className="spinner-border text-primary" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-          </div>
-        )}
+        {loading && <LoadingState />}
 
-        {!loading && error && (
-          <div className="alert alert-danger">{error}</div>
-        )}
+        {!loading && error && <ErrorState message={error} />}
 
         {!loading && !error && operations.length === 0 && (
-          <div className="alert alert-secondary">No operations recorded yet.</div>
+          <EmptyState message="No operations recorded yet." />
         )}
 
         {!loading && !error && operations.length > 0 && filteredOperations.length === 0 && (
-          <div className="alert alert-secondary">No operations match your filters.</div>
+          <EmptyState message="No operations match your filters." />
         )}
 
         {!loading && !error && filteredOperations.length > 0 && (
-          <table className="table table-striped">
+          <DataTable>
             <thead>
               <tr>
                 <th>ID</th>
@@ -182,11 +178,11 @@ export default function OperationsModule({ onViewSubscription }) {
             <tbody>
               {filteredOperations.map(operation => (
                 <tr key={operation.id}>
-                  <td>{operation.id}</td>
+                  <td className="font-mono text-muted">{operation.id}</td>
                   <td>
                     <button
                       type="button"
-                      className="btn btn-link p-0"
+                      className="btn btn-link p-0 font-mono"
                       onClick={() => onViewSubscription(operation.subscriptionId)}
                     >
                       {operation.subscriptionId}
@@ -194,16 +190,21 @@ export default function OperationsModule({ onViewSubscription }) {
                   </td>
                   <td>{operation.clientName}</td>
                   <td>{operation.operationType}</td>
-                  <td>{operation.status}</td>
-                  <td>{operation.createdDate}</td>
-                  <td>{operation.updatedDate}</td>
-                  <td>{operation.errorMessage}</td>
+                  <td>
+                    <StatusBadge
+                      token={OPERATION_STATUS_TOKEN[operation.status] || 'slate'}
+                      label={operation.status}
+                    />
+                  </td>
+                  <td className="text-muted font-mono">{operation.createdDate}</td>
+                  <td className="text-muted font-mono">{operation.updatedDate}</td>
+                  <td className="text-muted">{operation.errorMessage}</td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         )}
       </div>
-    </>
+    </div>
   );
 }
