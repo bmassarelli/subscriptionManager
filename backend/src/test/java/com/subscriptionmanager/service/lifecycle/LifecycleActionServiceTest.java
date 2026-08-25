@@ -8,6 +8,7 @@ import com.subscriptionmanager.entity.Platform;
 import com.subscriptionmanager.entity.Subscription;
 import com.subscriptionmanager.repository.OperationRepository;
 import com.subscriptionmanager.repository.PlatformRepository;
+import com.subscriptionmanager.repository.ResourceRepository;
 import com.subscriptionmanager.repository.SubscriptionRepository;
 import com.subscriptionmanager.service.OperationRecorder;
 import com.subscriptionmanager.service.SubscriptionService;
@@ -36,6 +37,7 @@ class LifecycleActionServiceTest {
     @Mock private OperationRepository operationRepository;
     @Mock private SubscriptionService subscriptionService;
     @Mock private PlatformRepository platformRepository;
+    @Mock private ResourceRepository resourceRepository;
 
     private LifecycleActionService service;
 
@@ -44,7 +46,7 @@ class LifecycleActionServiceTest {
         List<LifecycleAction> actions = List.of(
                 new SuspendAction(),
                 new ReconnectAction(),
-                new CancelAction(),
+                new CancelAction(resourceRepository),
                 new ChangePlanAction(platformRepository),
                 new ChangeMsisdnAction(),
                 new ChangeSimAction()
@@ -57,6 +59,7 @@ class LifecycleActionServiceTest {
         lenient().when(subscriptionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(operationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(subscriptionService.toDTO(any())).thenReturn(null);
+        lenient().when(resourceRepository.deleteBySubscriptionId(any())).thenReturn(0L);
     }
 
     private Subscription buildSubscription(String status) {
@@ -155,6 +158,43 @@ class LifecycleActionServiceTest {
         assertEquals("CA", subscription.getStatus());
         assertEquals(LocalDate.now(), subscription.getCancelDate());
         assertNull(subscription.getDeactivateDate());
+    }
+
+    @Test
+    void cancelReleasesResourcesAndNotesItInTheDescription() {
+        Subscription subscription = buildSubscription("AC");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+        when(resourceRepository.deleteBySubscriptionId(1L)).thenReturn(2L);
+
+        service.execute(1L, "CANCEL", Map.of("immediate", true));
+
+        verify(resourceRepository).deleteBySubscriptionId(1L);
+        ArgumentCaptor<Operation> captor = ArgumentCaptor.forClass(Operation.class);
+        verify(operationRepository).save(captor.capture());
+        assertTrue(captor.getValue().getDescription().contains("2 resources released"));
+    }
+
+    @Test
+    void cancelWithNoResourcesOmitsReleaseFromDescription() {
+        Subscription subscription = buildSubscription("AC");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        service.execute(1L, "CANCEL", Map.of("immediate", true));
+
+        ArgumentCaptor<Operation> captor = ArgumentCaptor.forClass(Operation.class);
+        verify(operationRepository).save(captor.capture());
+        assertFalse(captor.getValue().getDescription().contains("resources released"));
+    }
+
+    @Test
+    void nonImmediateCancelStillReleasesResources() {
+        Subscription subscription = buildSubscription("AC");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+        when(resourceRepository.deleteBySubscriptionId(1L)).thenReturn(1L);
+
+        service.execute(1L, "CANCEL", Map.of("immediate", false));
+
+        verify(resourceRepository).deleteBySubscriptionId(1L);
     }
 
     @Test

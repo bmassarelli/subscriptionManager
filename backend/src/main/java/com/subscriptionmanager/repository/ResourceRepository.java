@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface ResourceRepository extends JpaRepository<Resource, Long> {
     List<Resource> findBySubscriptionIdOrderByIdAsc(Long subscriptionId);
+
+    long deleteBySubscriptionId(Long subscriptionId);
 }
