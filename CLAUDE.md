@@ -199,6 +199,12 @@ endpoint — see `subscription-lifecycle` under Architecture Notes below.
   against `PAYMENT_MODE` and `PRODUCT_OFFERING` respectively — `po` is accepted
   and returned as a name string on the wire (matching the documented external
   contract) but resolved/stored as `PRODUCT_OFFERING_ID` internally
+- `platform` and `productOffering`/`po` are distinct, non-overlapping concepts —
+  `platform` is *how* a subscription is technically realized (access + billing
+  engine), `po` is *what* was commercially sold (TMF620 ProductOffering); see the
+  class Javadoc on `Subscription.java` and
+  `docs/superpowers/specs/2026-08-20-tmforum-alignment-analysis.md` for the full
+  TM Forum alignment rationale
 - CORS configured to allow requests from `http://localhost:3000`
 - JPA with Oracle dialect — DDL auto is `none` (schema managed by SQL scripts).
   Entities generated via `@GeneratedValue(SEQUENCE)` mapped to the matching

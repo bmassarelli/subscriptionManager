@@ -4,6 +4,22 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+/**
+ * {@code productOffering} and {@code platform} are two distinct, non-overlapping TM Forum
+ * concepts, not redundant fields:
+ * <ul>
+ *   <li>{@code productOffering} ({@code po} on the wire) is the commercial
+ *       {@code ProductOffering} (TMF620) — <em>what</em> the client bought (e.g. {@code claroVideo}).</li>
+ *   <li>{@code platform} is a {@code Service} (TMF638) technical-realization attribute — access
+ *       + billing engine (e.g. {@code MOBILE_BSCS9}) — <em>how</em> the offering is technically
+ *       provisioned and billed.</li>
+ * </ul>
+ * Do not conflate them: an earlier draft of the TM Forum alignment analysis
+ * ({@code docs/superpowers/specs/2026-08-20-tmforum-alignment-analysis.md}, §0.2) mistook
+ * {@code platform} for the {@code ProductOffering} precisely because it is validated, mandatory,
+ * and mutable — the external contract ({@code POST /subsmanActivate} sending {@code platform} and
+ * {@code po} as distinct, coexisting fields) proves they are independent axes.
+ */
 @Entity
 @Table(schema = "SUBSCRIPTION_MANAGER", name = "SUBSCRIPTIONS")
 public class Subscription {
@@ -18,6 +34,8 @@ public class Subscription {
     @JoinColumn(name = "CLIENT_ID")
     private Client client;
 
+    // Service (TMF638) technical-realization attribute — HOW the offering is provisioned/billed.
+    // Not the commercial ProductOffering — see class Javadoc.
     @Column(name = "PLATFORM")
     private String platform;
 
@@ -36,6 +54,8 @@ public class Subscription {
     @Column(name = "MODIFY_DATE")
     private LocalDate modifyDate;
 
+    // Commercial ProductOffering (TMF620) — WHAT the client bought.
+    // Not the technical-realization attribute — see class Javadoc.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "PRODUCT_OFFERING_ID")
     private ProductOffering productOffering;
