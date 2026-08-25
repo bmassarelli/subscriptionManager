@@ -9,6 +9,8 @@ public interface LifecycleAction {
 
     String getType();
 
+    default LifecycleDomain domain() { return LifecycleDomain.PRODUCT; }
+
     List<String> eligibleStatuses();
 
     void validate(Subscription subscription, Map<String, Object> data);

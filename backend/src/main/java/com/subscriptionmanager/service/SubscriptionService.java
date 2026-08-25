@@ -3,6 +3,7 @@ package com.subscriptionmanager.service;
 import com.subscriptionmanager.dto.SubscriptionDTO;
 import com.subscriptionmanager.dto.SubscriptionDetailDTO;
 import com.subscriptionmanager.dto.SubscriptionRequestDTO;
+import com.subscriptionmanager.dto.ServiceDTO;
 import com.subscriptionmanager.entity.Client;
 import com.subscriptionmanager.entity.PaymentMode;
 import com.subscriptionmanager.entity.ProductOffering;
@@ -108,6 +109,7 @@ public class SubscriptionService {
                 s.getAmount(),
                 s.getMsisdn(),
                 s.getSimIccid(),
+                new ServiceDTO(s.getPlatform(), s.getMsisdn(), s.getSimIccid()),
                 availableActions
         );
     }

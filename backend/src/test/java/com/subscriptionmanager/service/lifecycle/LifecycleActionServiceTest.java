@@ -351,4 +351,14 @@ class LifecycleActionServiceTest {
         when(operationRepository.findAllByOrderByCreatedDateDesc()).thenReturn(List.of());
         assertTrue(service.getAllOperations().isEmpty());
     }
+
+    @Test
+    void classifiesEachActionsDomainCorrectly() {
+        assertEquals(LifecycleDomain.PRODUCT, new SuspendAction().domain());
+        assertEquals(LifecycleDomain.PRODUCT, new ReconnectAction().domain());
+        assertEquals(LifecycleDomain.PRODUCT, new CancelAction(resourceRepository).domain());
+        assertEquals(LifecycleDomain.SERVICE, new ChangePlanAction(platformRepository).domain());
+        assertEquals(LifecycleDomain.SERVICE, new ChangeMsisdnAction().domain());
+        assertEquals(LifecycleDomain.SERVICE, new ChangeSimAction().domain());
+    }
 }

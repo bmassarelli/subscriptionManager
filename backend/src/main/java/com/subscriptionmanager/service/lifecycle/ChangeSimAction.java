@@ -13,6 +13,9 @@ public class ChangeSimAction implements LifecycleAction {
     public String getType() { return "CHANGE_SIM"; }
 
     @Override
+    public LifecycleDomain domain() { return LifecycleDomain.SERVICE; }
+
+    @Override
     public List<String> eligibleStatuses() { return List.of("AC", "TR"); }
 
     @Override

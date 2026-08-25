@@ -16,6 +16,9 @@ public class ChangeMsisdnAction implements LifecycleAction {
     public String getType() { return "CHANGE_MSISDN"; }
 
     @Override
+    public LifecycleDomain domain() { return LifecycleDomain.SERVICE; }
+
+    @Override
     public List<String> eligibleStatuses() { return List.of("AC", "TR"); }
 
     @Override

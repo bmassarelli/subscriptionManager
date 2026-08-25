@@ -24,6 +24,7 @@ public class SubscriptionDetailDTO {
     private final BigDecimal amount;
     private final String subscriptionMsisdn;
     private final String simIccid;
+    private final ServiceDTO service;
     private final List<String> availableActions;
 
     public SubscriptionDetailDTO(Long id, String clientName, String email, String msisdn,
@@ -31,7 +32,7 @@ public class SubscriptionDetailDTO {
                                   String status, LocalDate entryDate, LocalDate activateDate,
                                   LocalDate deactivateDate, LocalDate cancelDate, LocalDate startTrialDate,
                                   LocalDate endTrialDate, BigDecimal amount, String subscriptionMsisdn,
-                                  String simIccid, List<String> availableActions) {
+                                  String simIccid, ServiceDTO service, List<String> availableActions) {
         this.id = id;
         this.clientName = clientName;
         this.email = email;
@@ -50,6 +51,7 @@ public class SubscriptionDetailDTO {
         this.amount = amount;
         this.subscriptionMsisdn = subscriptionMsisdn;
         this.simIccid = simIccid;
+        this.service = service;
         this.availableActions = availableActions;
     }
 
@@ -71,5 +73,6 @@ public class SubscriptionDetailDTO {
     public BigDecimal getAmount() { return amount; }
     public String getSubscriptionMsisdn() { return subscriptionMsisdn; }
     public String getSimIccid() { return simIccid; }
+    public ServiceDTO getService() { return service; }
     public List<String> getAvailableActions() { return availableActions; }
 }

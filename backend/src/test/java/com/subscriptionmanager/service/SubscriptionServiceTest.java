@@ -133,6 +133,9 @@ class SubscriptionServiceTest {
         assertEquals("John Doe", detail.getClientName());
         assertEquals("AC", detail.getStatus());
         assertEquals(List.of("SUSPEND", "CANCEL"), detail.getAvailableActions());
+        assertEquals("MOBILE_BSCS9", detail.getService().getPlatform());
+        assertEquals(detail.getSubscriptionMsisdn(), detail.getService().getMsisdn());
+        assertEquals(detail.getSimIccid(), detail.getService().getSimIccid());
     }
 
     @Test
