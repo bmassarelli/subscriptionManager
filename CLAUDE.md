@@ -13,14 +13,16 @@ subscriptionManager/
 │   │                                   # (CLIENT, SUBSCRIPTIONS, PLATFORM, PAYMENT_MODE)
 │   ├── 002-lifecycle-actions.sql      # lifecycle-mutable columns + OPERATIONS table
 │   ├── 003-hardening.sql              # PRE_SUSPEND_STATUS + CLIENT email/msisdn uniqueness
-│   └── 004-resources.sql              # RESOURCES table + SEQ_RESOURCE_ID + trigger
+│   ├── 004-resources.sql              # RESOURCES table + SEQ_RESOURCE_ID + trigger
+│   └── 005-product-offering.sql       # PRODUCT_OFFERING table + SUBSCRIPTIONS FK, drops PO
 ├── backend/                            # Spring Boot 3, Java 21, Maven
 │   └── src/main/
 │       ├── java/com/subscriptionmanager/
 │       │   ├── SubscriptionManagerApplication.java
 │       │   ├── config/CorsConfig.java
 │       │   ├── controller/
-│       │   │   ├── CatalogController.java             # GET /api/platforms, /api/payment-modes
+│       │   │   ├── CatalogController.java             # GET /api/platforms, /api/payment-modes,
+│       │   │   │                                         # /api/product-offerings
 │       │   │   ├── ClientController.java              # GET/POST /api/clients
 │       │   │   ├── SubscriptionController.java         # GET/POST /api/subscriptions
 │       │   │   ├── SubscriptionLifecycleController.java # POST lifecycle actions, GET operations,
@@ -31,25 +33,26 @@ subscriptionManager/
 │       │   ├── dto/
 │       │   │   ├── ClientRequestDTO.java / ClientResponseDTO.java
 │       │   │   ├── SubscriptionDTO.java / SubscriptionRequestDTO.java / SubscriptionDetailDTO.java
-│       │   │   ├── PlatformDTO.java / PaymentModeDTO.java
+│       │   │   ├── PlatformDTO.java / PaymentModeDTO.java / ProductOfferingDTO.java
 │       │   │   ├── LifecycleActionRequestDTO.java / LifecycleActionResultDTO.java / OperationDTO.java
 │       │   │   ├── ResourceDTO.java / ResourceRequestDTO.java
 │       │   │   └── DashboardSummaryDTO.java
 │       │   ├── entity/
 │       │   │   ├── Client.java / Subscription.java (full column mapping incl. PRE_SUSPEND_STATUS)
-│       │   │   ├── Platform.java / PaymentMode.java
+│       │   │   ├── Platform.java / PaymentMode.java / ProductOffering.java
 │       │   │   ├── Operation.java (lifecycle audit trail)
 │       │   │   └── Resource.java (IP/VLAN/CPE/PORT/EQUIPMENT/NODE)
 │       │   ├── repository/
 │       │   │   ├── ClientRepository.java / SubscriptionRepository.java
-│       │   │   ├── PlatformRepository.java / PaymentModeRepository.java
+│       │   │   ├── PlatformRepository.java / PaymentModeRepository.java / ProductOfferingRepository.java
 │       │   │   ├── OperationRepository.java / ResourceRepository.java
 │       │   ├── service/
 │       │   │   ├── ClientService.java / SubscriptionService.java
 │       │   │   ├── DashboardService.java              # aggregates counts/status breakdown/recent ops
 │       │   │   ├── OperationMapper.java / OperationRecorder.java
 │       │   │   ├── InvalidClientReferenceException.java, InvalidPlatformException.java,
-│       │   │   │   InvalidPaymentModeException.java, DuplicateClientFieldException.java
+│       │   │   │   InvalidPaymentModeException.java, InvalidProductOfferingException.java,
+│       │   │   │   DuplicateClientFieldException.java
 │       │   │   ├── lifecycle/                         # SUSPEND/RECONNECT/CANCEL/CHANGE_PLAN/
 │       │   │   │   ├── LifecycleAction.java, LifecycleActionRegistry.java,   # CHANGE_MSISDN/CHANGE_SIM
 │       │   │   │   ├── LifecycleActionService.java     # actions, one per class implementing LifecycleAction
@@ -135,18 +138,20 @@ codebase anymore.
 
 ## Database
 
-Oracle DB, schema: `SUBSCRIPTION_MANAGER`. All four migrations (`001`–`004`) are
+Oracle DB, schema: `SUBSCRIPTION_MANAGER`. All five migrations (`001`–`005`) are
 applied to the live training DB. Main tables:
 
 - `CLIENT` — CLIENT_ID, NAME, LAST_NAME, EMAIL, MSISDN (EMAIL and MSISDN are
   unique — `UQ_CLIENT_EMAIL`, `UQ_CLIENT_MSISDN`, added in `003-hardening.sql`)
 - `SUBSCRIPTIONS` — ID, CLIENT_ID, PLATFORM, CONTRACT, STATUS, AMOUNT, dates,
   MSISDN, SIM_ICCID, PRE_SUSPEND_STATUS (remembers status before a suspend, for
-  Reconnect)
+  Reconnect), PRODUCT_OFFERING_ID (FK to `PRODUCT_OFFERING`, added in
+  `005-product-offering.sql`, replacing the old unused `PO` free-text column)
 - `OPERATIONS` — lifecycle-action audit trail (added in `002-lifecycle-actions.sql`)
 - `RESOURCES` — ID, SUBSCRIPTION_ID, RESOURCE_TYPE (`IP`/`VLAN`/`CPE`/`PORT`/
   `EQUIPMENT`/`NODE`), VALUE (added in `004-resources.sql`; MSISDN/SIM_ICCID stay
   dedicated `SUBSCRIPTIONS` columns rather than living here)
+- `PRODUCT_OFFERING` — ID, NAME (catalog for `po`, added in `005-product-offering.sql`)
 
 Full column reference is in `README.md`.
 
@@ -187,10 +192,13 @@ endpoint — see `subscription-lifecycle` under Architecture Notes below.
   `PUT`/`DELETE` for clients or subscriptions themselves yet (see "What's Not
   Built Yet")
 - Validation errors and invalid-reference/not-found errors (unknown `clientId`/
-  `platform`/`paymentModeId`/subscription id/resource id) return `400`/`404` with
-  a field→message body via `GlobalExceptionHandler` — never a raw `500`
+  `platform`/`paymentModeId`/`po`/subscription id/resource id) return `400`/`404`
+  with a field→message body via `GlobalExceptionHandler` — never a raw `500`
 - `platform` is validated against the `PLATFORM` catalog by name (no DB-level FK);
-  `paymentModeId` is a real FK, validated against `PAYMENT_MODE`
+  `paymentModeId` and `po` (Product Offering) are both real FKs, validated
+  against `PAYMENT_MODE` and `PRODUCT_OFFERING` respectively — `po` is accepted
+  and returned as a name string on the wire (matching the documented external
+  contract) but resolved/stored as `PRODUCT_OFFERING_ID` internally
 - CORS configured to allow requests from `http://localhost:3000`
 - JPA with Oracle dialect — DDL auto is `none` (schema managed by SQL scripts).
   Entities generated via `@GeneratedValue(SEQUENCE)` mapped to the matching

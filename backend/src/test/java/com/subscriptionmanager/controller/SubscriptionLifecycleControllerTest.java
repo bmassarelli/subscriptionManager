@@ -40,7 +40,7 @@ class SubscriptionLifecycleControllerTest {
     @Test
     void executesActionAndPassesTypeAndDataThrough() throws Exception {
         SubscriptionDTO subscriptionDTO = new SubscriptionDTO(1L, "John Doe", "john@doe.com", "+11234567890",
-                "MOBILE_BSCS9", "CONTR_001", "SU", LocalDate.now(), new BigDecimal("10.00"));
+                "MOBILE_BSCS9", "CONTR_001", "SU", LocalDate.now(), new BigDecimal("10.00"), null);
         OperationDTO operationDTO = new OperationDTO(1L, 1L, "John Doe", "SUSPEND", "COMPLETED",
                 LocalDateTime.now(), LocalDateTime.now(), null, "AC -> SU");
         when(service.execute(eq(1L), eq("SUSPEND"), any())).thenReturn(
@@ -57,7 +57,7 @@ class SubscriptionLifecycleControllerTest {
     @Test
     void passesActionSpecificFieldsIntoData() throws Exception {
         SubscriptionDTO subscriptionDTO = new SubscriptionDTO(1L, "John Doe", "john@doe.com", "+11234567890",
-                "MOBILE_BSCS9", "CONTR_001", "CA", LocalDate.now(), new BigDecimal("10.00"));
+                "MOBILE_BSCS9", "CONTR_001", "CA", LocalDate.now(), new BigDecimal("10.00"), null);
         OperationDTO operationDTO = new OperationDTO(1L, 1L, "John Doe", "CANCEL", "COMPLETED",
                 LocalDateTime.now(), LocalDateTime.now(), null, "AC -> CA");
         when(service.execute(eq(1L), eq("CANCEL"), any())).thenReturn(

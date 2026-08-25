@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const INITIAL_VALUES = { clientId: '', platform: '', contract: '', amount: '', paymentModeId: '' };
+const INITIAL_VALUES = { clientId: '', platform: '', contract: '', amount: '', paymentModeId: '', po: '' };
 
 const FIELD_LABELS = {
   clientId: 'Client',
@@ -15,6 +15,7 @@ export default function AddSubscriptionForm({ onCreated }) {
   const [clients, setClients] = useState([]);
   const [platforms, setPlatforms] = useState([]);
   const [paymentModes, setPaymentModes] = useState([]);
+  const [productOfferings, setProductOfferings] = useState([]);
   const [values, setValues] = useState(INITIAL_VALUES);
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState(null);
@@ -35,6 +36,11 @@ export default function AddSubscriptionForm({ onCreated }) {
       .then(res => (res.ok ? res.json() : []))
       .then(setPaymentModes)
       .catch(() => setPaymentModes([]));
+
+    fetch('http://localhost:8080/api/product-offerings')
+      .then(res => (res.ok ? res.json() : []))
+      .then(setProductOfferings)
+      .catch(() => setProductOfferings([]));
   }, []);
 
   function handleChange(field) {
@@ -75,6 +81,7 @@ export default function AddSubscriptionForm({ onCreated }) {
           contract: values.contract,
           amount: Number(values.amount),
           ...(values.paymentModeId ? { paymentModeId: Number(values.paymentModeId) } : {}),
+          ...(values.po ? { po: values.po } : {}),
         }),
       });
 
@@ -184,6 +191,28 @@ export default function AddSubscriptionForm({ onCreated }) {
           </select>
           {errors.paymentModeId && (
             <div className="invalid-feedback">{errors.paymentModeId}</div>
+          )}
+        </div>
+
+        <div className="col-auto">
+          <label className="form-label mb-0" htmlFor="subscription-po">
+            Product Offering (optional)
+          </label>
+          <select
+            id="subscription-po"
+            className={`form-select${errors.po ? ' is-invalid' : ''}`}
+            value={values.po}
+            onChange={handleChange('po')}
+          >
+            <option value="">None</option>
+            {productOfferings.map(po => (
+              <option key={po.id} value={po.name}>
+                {po.name}
+              </option>
+            ))}
+          </select>
+          {errors.po && (
+            <div className="invalid-feedback">{errors.po}</div>
           )}
         </div>
 

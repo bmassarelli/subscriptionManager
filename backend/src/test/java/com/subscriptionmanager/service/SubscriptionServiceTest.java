@@ -6,11 +6,13 @@ import com.subscriptionmanager.dto.SubscriptionRequestDTO;
 import com.subscriptionmanager.entity.Client;
 import com.subscriptionmanager.entity.Operation;
 import com.subscriptionmanager.entity.Platform;
+import com.subscriptionmanager.entity.ProductOffering;
 import com.subscriptionmanager.entity.Subscription;
 import com.subscriptionmanager.repository.ClientRepository;
 import com.subscriptionmanager.repository.OperationRepository;
 import com.subscriptionmanager.repository.PaymentModeRepository;
 import com.subscriptionmanager.repository.PlatformRepository;
+import com.subscriptionmanager.repository.ProductOfferingRepository;
 import com.subscriptionmanager.repository.SubscriptionRepository;
 import com.subscriptionmanager.service.lifecycle.LifecycleActionRegistry;
 import com.subscriptionmanager.service.lifecycle.SubscriptionNotFoundException;
@@ -39,13 +41,14 @@ class SubscriptionServiceTest {
     @Mock private ClientRepository clientRepository;
     @Mock private PlatformRepository platformRepository;
     @Mock private PaymentModeRepository paymentModeRepository;
+    @Mock private ProductOfferingRepository productOfferingRepository;
     @Mock private OperationRepository operationRepository;
     @Mock private LifecycleActionRegistry actionRegistry;
 
     private SubscriptionService newService() {
         OperationRecorder operationRecorder = new OperationRecorder(operationRepository, new ObjectMapper());
         return new SubscriptionService(subscriptionRepository, clientRepository, platformRepository,
-                paymentModeRepository, operationRecorder, actionRegistry);
+                paymentModeRepository, productOfferingRepository, operationRecorder, actionRegistry);
     }
 
     @Test
@@ -69,6 +72,48 @@ class SubscriptionServiceTest {
         verify(operationRepository).save(captor.capture());
         assertEquals("CREATE", captor.getValue().getOperationType());
         assertEquals("COMPLETED", captor.getValue().getStatus());
+    }
+
+    @Test
+    void resolvesAndPersistsProductOfferingWhenPoIsProvided() {
+        SubscriptionService service = newService();
+
+        Client client = new Client(1L, "John", "Doe", "john@doe.com", "+11234567890");
+        when(clientRepository.findById(1L)).thenReturn(Optional.of(client));
+        when(platformRepository.findByName("MOBILE_BSCS9")).thenReturn(Optional.of(new Platform(1L, "MOBILE_BSCS9")));
+        when(productOfferingRepository.findByName("claroVideo"))
+                .thenReturn(Optional.of(new ProductOffering(1L, "claroVideo")));
+        when(subscriptionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        SubscriptionRequestDTO request = new SubscriptionRequestDTO();
+        request.setClientId(1L);
+        request.setPlatform("MOBILE_BSCS9");
+        request.setContract("CONTR_001");
+        request.setAmount(new BigDecimal("10.00"));
+        request.setPo("claroVideo");
+
+        var result = service.create(request);
+
+        assertEquals("claroVideo", result.getPo());
+    }
+
+    @Test
+    void throwsInvalidProductOfferingForUnknownPoName() {
+        SubscriptionService service = newService();
+
+        Client client = new Client(1L, "John", "Doe", "john@doe.com", "+11234567890");
+        when(clientRepository.findById(1L)).thenReturn(Optional.of(client));
+        when(platformRepository.findByName("MOBILE_BSCS9")).thenReturn(Optional.of(new Platform(1L, "MOBILE_BSCS9")));
+        when(productOfferingRepository.findByName("unknownOffering")).thenReturn(Optional.empty());
+
+        SubscriptionRequestDTO request = new SubscriptionRequestDTO();
+        request.setClientId(1L);
+        request.setPlatform("MOBILE_BSCS9");
+        request.setContract("CONTR_001");
+        request.setAmount(new BigDecimal("10.00"));
+        request.setPo("unknownOffering");
+
+        assertThrows(InvalidProductOfferingException.class, () -> service.create(request));
     }
 
     private Subscription buildSubscription(String status) {

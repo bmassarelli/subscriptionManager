@@ -36,8 +36,9 @@ public class Subscription {
     @Column(name = "MODIFY_DATE")
     private LocalDate modifyDate;
 
-    @Column(name = "PO")
-    private String po;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "PRODUCT_OFFERING_ID")
+    private ProductOffering productOffering;
 
     @Column(name = "ACTIVATE_DATE")
     private LocalDate activateDate;
@@ -107,7 +108,7 @@ public class Subscription {
     public LocalDate getEntryDate() { return entryDate; }
     public BigDecimal getAmount() { return amount; }
     public LocalDate getModifyDate() { return modifyDate; }
-    public String getPo() { return po; }
+    public ProductOffering getProductOffering() { return productOffering; }
     public LocalDate getActivateDate() { return activateDate; }
     public LocalDate getDeactivateDate() { return deactivateDate; }
     public LocalDate getCancelDate() { return cancelDate; }
@@ -132,7 +133,7 @@ public class Subscription {
     public void setEntryDate(LocalDate entryDate) { this.entryDate = entryDate; }
     public void setAmount(BigDecimal amount) { this.amount = amount; }
     public void setModifyDate(LocalDate modifyDate) { this.modifyDate = modifyDate; }
-    public void setPo(String po) { this.po = po; }
+    public void setProductOffering(ProductOffering productOffering) { this.productOffering = productOffering; }
     public void setActivateDate(LocalDate activateDate) { this.activateDate = activateDate; }
     public void setDeactivateDate(LocalDate deactivateDate) { this.deactivateDate = deactivateDate; }
     public void setCancelDate(LocalDate cancelDate) { this.cancelDate = cancelDate; }

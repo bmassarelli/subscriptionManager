@@ -5,6 +5,7 @@ import com.subscriptionmanager.dto.SubscriptionDTO;
 import com.subscriptionmanager.service.InvalidClientReferenceException;
 import com.subscriptionmanager.service.InvalidPaymentModeException;
 import com.subscriptionmanager.service.InvalidPlatformException;
+import com.subscriptionmanager.service.InvalidProductOfferingException;
 import com.subscriptionmanager.service.SubscriptionService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,7 +41,7 @@ class SubscriptionControllerTest {
     void listsAllSubscriptions() throws Exception {
         when(subscriptionService.getAll()).thenReturn(List.of(
                 new SubscriptionDTO(1L, "John Doe", "john.doe@example.com", "+11234567890",
-                        "MOBILE_BSCS9", "CONTR_00001", "TR", LocalDate.now(), new BigDecimal("29.75"))));
+                        "MOBILE_BSCS9", "CONTR_00001", "TR", LocalDate.now(), new BigDecimal("29.75"), null)));
 
         mockMvc.perform(get("/api/subscriptions"))
                 .andExpect(status().isOk())
@@ -61,7 +62,7 @@ class SubscriptionControllerTest {
     void createsSubscriptionAndReturnsGeneratedIdAndTrialStatus() throws Exception {
         when(subscriptionService.create(any())).thenReturn(new SubscriptionDTO(
                 1L, "John Doe", "john.doe@example.com", "+11234567890",
-                "MOBILE_BSCS9", "CONTR_00001", "TR", LocalDate.now(), new BigDecimal("29.75")));
+                "MOBILE_BSCS9", "CONTR_00001", "TR", LocalDate.now(), new BigDecimal("29.75"), null));
 
         Map<String, Object> body = Map.of(
                 "clientId", 1,
@@ -129,7 +130,7 @@ class SubscriptionControllerTest {
     void ignoresClientSuppliedIdAndStatus() throws Exception {
         when(subscriptionService.create(any())).thenReturn(new SubscriptionDTO(
                 1L, "John Doe", "john.doe@example.com", "+11234567890",
-                "MOBILE_BSCS9", "CONTR_00001", "TR", LocalDate.now(), new BigDecimal("29.75")));
+                "MOBILE_BSCS9", "CONTR_00001", "TR", LocalDate.now(), new BigDecimal("29.75"), null));
 
         String body = """
                 {
@@ -191,7 +192,7 @@ class SubscriptionControllerTest {
     void acceptsValidPaymentMode() throws Exception {
         when(subscriptionService.create(any())).thenReturn(new SubscriptionDTO(
                 1L, "John Doe", "john.doe@example.com", "+11234567890",
-                "MOBILE_BSCS9", "CONTR_00001", "TR", LocalDate.now(), new BigDecimal("29.75")));
+                "MOBILE_BSCS9", "CONTR_00001", "TR", LocalDate.now(), new BigDecimal("29.75"), null));
 
         Map<String, Object> body = Map.of(
                 "clientId", 1,
@@ -205,5 +206,45 @@ class SubscriptionControllerTest {
                         .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1));
+    }
+
+    @Test
+    void rejectsUnknownProductOffering() throws Exception {
+        when(subscriptionService.create(any()))
+                .thenThrow(new InvalidProductOfferingException("No product offering exists with name unknownOffering"));
+
+        Map<String, Object> body = Map.of(
+                "clientId", 1,
+                "platform", "MOBILE_BSCS9",
+                "contract", "CONTR_00001",
+                "amount", 29.75,
+                "po", "unknownOffering");
+
+        mockMvc.perform(post("/api/subscriptions")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.po").exists());
+    }
+
+    @Test
+    void acceptsValidProductOffering() throws Exception {
+        when(subscriptionService.create(any())).thenReturn(new SubscriptionDTO(
+                1L, "John Doe", "john.doe@example.com", "+11234567890",
+                "MOBILE_BSCS9", "CONTR_00001", "TR", LocalDate.now(), new BigDecimal("29.75"), "claroVideo"));
+
+        Map<String, Object> body = Map.of(
+                "clientId", 1,
+                "platform", "MOBILE_BSCS9",
+                "contract", "CONTR_00001",
+                "amount", 29.75,
+                "po", "claroVideo");
+
+        mockMvc.perform(post("/api/subscriptions")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.po").value("claroVideo"));
     }
 }

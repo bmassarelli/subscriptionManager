@@ -2,8 +2,10 @@ package com.subscriptionmanager.controller;
 
 import com.subscriptionmanager.entity.PaymentMode;
 import com.subscriptionmanager.entity.Platform;
+import com.subscriptionmanager.entity.ProductOffering;
 import com.subscriptionmanager.repository.PaymentModeRepository;
 import com.subscriptionmanager.repository.PlatformRepository;
+import com.subscriptionmanager.repository.ProductOfferingRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -29,6 +31,9 @@ class CatalogControllerTest {
     @MockBean
     private PaymentModeRepository paymentModeRepository;
 
+    @MockBean
+    private ProductOfferingRepository productOfferingRepository;
+
     @Test
     void listsPlatforms() throws Exception {
         when(platformRepository.findAll()).thenReturn(List.of(
@@ -51,5 +56,16 @@ class CatalogControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].name").value("OCC"));
+    }
+
+    @Test
+    void listsProductOfferings() throws Exception {
+        when(productOfferingRepository.findAll()).thenReturn(List.of(
+                new ProductOffering(1L, "claroVideo")));
+
+        mockMvc.perform(get("/api/product-offerings"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].name").value("claroVideo"));
     }
 }

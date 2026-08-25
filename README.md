@@ -20,6 +20,17 @@ Charging is determined by the `PAYMENT_MODE` table:
 
 ---
 
+## Product Offerings
+
+`PRODUCT_OFFERING` is the local catalog backing `SUBSCRIPTIONS.PRODUCT_OFFERING_ID`. It starts
+with a single confirmed real value and grows as more offering names are learned:
+
+| ID | Name       |
+|----|------------|
+| 1  | claroVideo |
+
+---
+
 ## Database Tables
 
 ### `CLIENTS`
@@ -36,7 +47,6 @@ Stores customer information: email, first name, last name, and MSISDN.
 | PLATFORM           | VARCHAR2(100)   | Charging platform (e.g., `MOBILE_BSCS9`)                 |
 | CONTRACT           | VARCHAR2(400)   | Contract identifier                                      |
 | STATUS             | VARCHAR2(2)     | Current subscription status (see status table below)     |
-| PO                 | VARCHAR2(400)   | Product Offering — determines charging behavior          |
 | ACTIVATE_DATE      | DATE            | Effective start date                                     |
 | DEACTIVATE_DATE    | DATE            | Expiration/deactivation date                             |
 | CANCEL_DATE        | DATE            | Set when the user requests cancellation                  |
@@ -50,6 +60,7 @@ Stores customer information: email, first name, last name, and MSISDN.
 | ERROR_MSG          | VARCHAR2(4000)  | Error message if charging fails                          |
 | PROMOTION          | NUMBER          | Promotion ID from the promotions application             |
 | PAYMENT_MODE_ID    | NUMBER          | FK to `PAYMENT_MODE` — set on creation, optional          |
+| PRODUCT_OFFERING_ID | NUMBER         | FK to `PRODUCT_OFFERING` — set on creation, optional      |
 | MSISDN             | VARCHAR2(400)   | This subscription's own phone number (set via the `CHANGE_MSISDN` lifecycle action; distinct from the client's contact MSISDN on `CLIENT`) |
 | SIM_ICCID          | VARCHAR2(400)   | This subscription's SIM/eSIM identifier (set via the `CHANGE_SIM` lifecycle action) |
 
@@ -93,7 +104,7 @@ none of it is integrated here. What Subscription Manager itself actually impleme
 today, purely locally against its own database:
 
 - `GET/POST /api/clients`, `GET/POST /api/subscriptions`, `GET /api/subscriptions/{id}`
-- `GET /api/platforms`, `GET /api/payment-modes`
+- `GET /api/platforms`, `GET /api/payment-modes`, `GET /api/product-offerings`
 - `POST /api/subscriptions/{id}/actions` — a generic lifecycle-action endpoint
   (`SUSPEND`, `RECONNECT`, `CANCEL`, `CHANGE_PLAN`, `CHANGE_MSISDN`, `CHANGE_SIM`)
   that validates the transition against the status table above, applies the

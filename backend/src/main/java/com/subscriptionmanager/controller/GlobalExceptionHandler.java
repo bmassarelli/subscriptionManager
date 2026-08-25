@@ -4,6 +4,7 @@ import com.subscriptionmanager.service.DuplicateClientFieldException;
 import com.subscriptionmanager.service.InvalidClientReferenceException;
 import com.subscriptionmanager.service.InvalidPaymentModeException;
 import com.subscriptionmanager.service.InvalidPlatformException;
+import com.subscriptionmanager.service.InvalidProductOfferingException;
 import com.subscriptionmanager.service.lifecycle.InvalidLifecycleTransitionException;
 import com.subscriptionmanager.service.lifecycle.LifecycleActionValidationException;
 import com.subscriptionmanager.service.lifecycle.SubscriptionNotFoundException;
@@ -45,6 +46,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidPaymentModeException.class)
     public ResponseEntity<Map<String, String>> handleInvalidPaymentMode(InvalidPaymentModeException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("paymentModeId", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidProductOfferingException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidProductOffering(InvalidProductOfferingException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("po", ex.getMessage()));
     }
 
     @ExceptionHandler(DuplicateClientFieldException.class)

@@ -5,10 +5,12 @@ import com.subscriptionmanager.dto.SubscriptionDetailDTO;
 import com.subscriptionmanager.dto.SubscriptionRequestDTO;
 import com.subscriptionmanager.entity.Client;
 import com.subscriptionmanager.entity.PaymentMode;
+import com.subscriptionmanager.entity.ProductOffering;
 import com.subscriptionmanager.entity.Subscription;
 import com.subscriptionmanager.repository.ClientRepository;
 import com.subscriptionmanager.repository.PaymentModeRepository;
 import com.subscriptionmanager.repository.PlatformRepository;
+import com.subscriptionmanager.repository.ProductOfferingRepository;
 import com.subscriptionmanager.repository.SubscriptionRepository;
 import com.subscriptionmanager.service.lifecycle.LifecycleActionRegistry;
 import com.subscriptionmanager.service.lifecycle.SubscriptionNotFoundException;
@@ -25,16 +27,19 @@ public class SubscriptionService {
     private final ClientRepository clientRepository;
     private final PlatformRepository platformRepository;
     private final PaymentModeRepository paymentModeRepository;
+    private final ProductOfferingRepository productOfferingRepository;
     private final OperationRecorder operationRecorder;
     private final LifecycleActionRegistry actionRegistry;
 
     public SubscriptionService(SubscriptionRepository repository, ClientRepository clientRepository,
                                 PlatformRepository platformRepository, PaymentModeRepository paymentModeRepository,
+                                ProductOfferingRepository productOfferingRepository,
                                 OperationRecorder operationRecorder, LifecycleActionRegistry actionRegistry) {
         this.repository = repository;
         this.clientRepository = clientRepository;
         this.platformRepository = platformRepository;
         this.paymentModeRepository = paymentModeRepository;
+        this.productOfferingRepository = productOfferingRepository;
         this.operationRecorder = operationRecorder;
         this.actionRegistry = actionRegistry;
     }
@@ -65,6 +70,13 @@ public class SubscriptionService {
             subscription.setPaymentMode(paymentMode);
         }
 
+        if (request.getPo() != null && !request.getPo().isBlank()) {
+            ProductOffering productOffering = productOfferingRepository.findByName(request.getPo())
+                    .orElseThrow(() -> new InvalidProductOfferingException(
+                            "No product offering exists with name " + request.getPo()));
+            subscription.setProductOffering(productOffering);
+        }
+
         Subscription saved = repository.save(subscription);
         operationRecorder.record(saved, "CREATE", "COMPLETED", null, "Subscription created", null);
         return toDTO(saved);
@@ -84,7 +96,7 @@ public class SubscriptionService {
                 s.getClient().getMsisdn(),
                 s.getPlatform(),
                 s.getContract(),
-                s.getPo(),
+                s.getProductOffering() == null ? null : s.getProductOffering().getName(),
                 s.getPaymentMode() == null ? null : s.getPaymentMode().getName(),
                 s.getStatus(),
                 s.getEntryDate(),
@@ -111,7 +123,8 @@ public class SubscriptionService {
                 s.getContract(),
                 s.getStatus(),
                 s.getEntryDate(),
-                s.getAmount()
+                s.getAmount(),
+                s.getProductOffering() == null ? null : s.getProductOffering().getName()
         );
     }
 }
