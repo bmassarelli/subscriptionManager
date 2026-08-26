@@ -25,14 +25,16 @@ public class SubscriptionDetailDTO {
     private final String subscriptionMsisdn;
     private final String simIccid;
     private final ServiceDTO service;
-    private final List<String> availableActions;
+    private final List<String> availableProductActions;
+    private final List<String> availableServiceActions;
 
     public SubscriptionDetailDTO(Long id, String clientName, String email, String msisdn,
                                   String platform, String contract, String po, String paymentModeName,
                                   String status, LocalDate entryDate, LocalDate activateDate,
                                   LocalDate deactivateDate, LocalDate cancelDate, LocalDate startTrialDate,
                                   LocalDate endTrialDate, BigDecimal amount, String subscriptionMsisdn,
-                                  String simIccid, ServiceDTO service, List<String> availableActions) {
+                                  String simIccid, ServiceDTO service, List<String> availableProductActions,
+                                  List<String> availableServiceActions) {
         this.id = id;
         this.clientName = clientName;
         this.email = email;
@@ -52,7 +54,8 @@ public class SubscriptionDetailDTO {
         this.subscriptionMsisdn = subscriptionMsisdn;
         this.simIccid = simIccid;
         this.service = service;
-        this.availableActions = availableActions;
+        this.availableProductActions = availableProductActions;
+        this.availableServiceActions = availableServiceActions;
     }
 
     public Long getId() { return id; }
@@ -74,5 +77,6 @@ public class SubscriptionDetailDTO {
     public String getSubscriptionMsisdn() { return subscriptionMsisdn; }
     public String getSimIccid() { return simIccid; }
     public ServiceDTO getService() { return service; }
-    public List<String> getAvailableActions() { return availableActions; }
+    public List<String> getAvailableProductActions() { return availableProductActions; }
+    public List<String> getAvailableServiceActions() { return availableServiceActions; }
 }

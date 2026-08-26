@@ -158,13 +158,15 @@ class SubscriptionServiceTest {
         SubscriptionService service = newService();
         Subscription subscription = buildSubscription("AC");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
-        when(actionRegistry.availableActionsFor("AC")).thenReturn(List.of("SUSPEND", "CANCEL"));
+        when(actionRegistry.availableProductActionsFor("AC")).thenReturn(List.of("SUSPEND", "CANCEL"));
+        when(actionRegistry.availableServiceActionsFor("AC")).thenReturn(List.of("CHANGE_PLAN", "CHANGE_MSISDN", "CHANGE_SIM"));
 
         SubscriptionDetailDTO detail = service.getById(1L);
 
         assertEquals("John Doe", detail.getClientName());
         assertEquals("AC", detail.getStatus());
-        assertEquals(List.of("SUSPEND", "CANCEL"), detail.getAvailableActions());
+        assertEquals(List.of("SUSPEND", "CANCEL"), detail.getAvailableProductActions());
+        assertEquals(List.of("CHANGE_PLAN", "CHANGE_MSISDN", "CHANGE_SIM"), detail.getAvailableServiceActions());
         assertEquals("MOBILE_BSCS9", detail.getService().getPlatform());
         assertEquals(detail.getSubscriptionMsisdn(), detail.getService().getMsisdn());
         assertEquals(detail.getSimIccid(), detail.getService().getSimIccid());
@@ -183,11 +185,13 @@ class SubscriptionServiceTest {
         SubscriptionService service = newService();
         Subscription subscription = buildSubscription("CA");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
-        when(actionRegistry.availableActionsFor("CA")).thenReturn(List.of());
+        when(actionRegistry.availableProductActionsFor("CA")).thenReturn(List.of());
+        when(actionRegistry.availableServiceActionsFor("CA")).thenReturn(List.of());
 
         SubscriptionDetailDTO detail = service.getById(1L);
 
-        assertTrue(detail.getAvailableActions().isEmpty());
+        assertTrue(detail.getAvailableProductActions().isEmpty());
+        assertTrue(detail.getAvailableServiceActions().isEmpty());
     }
 
     @Test

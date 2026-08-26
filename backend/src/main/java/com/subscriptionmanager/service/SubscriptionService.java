@@ -93,7 +93,8 @@ public class SubscriptionService {
         Subscription s = repository.findById(id)
                 .orElseThrow(() -> new SubscriptionNotFoundException("No subscription exists with id " + id));
 
-        List<String> availableActions = actionRegistry.availableActionsFor(s.getStatus());
+        List<String> availableProductActions = actionRegistry.availableProductActionsFor(s.getStatus());
+        List<String> availableServiceActions = actionRegistry.availableServiceActionsFor(s.getStatus());
         String clientName = s.getClient().getName() + " " + s.getClient().getLastName();
 
         return new SubscriptionDetailDTO(
@@ -116,7 +117,8 @@ public class SubscriptionService {
                 s.getService().getMsisdn(),
                 s.getService().getSimIccid(),
                 new ServiceDTO(s.getService().getPlatform(), s.getService().getMsisdn(), s.getService().getSimIccid()),
-                availableActions
+                availableProductActions,
+                availableServiceActions
         );
     }
 

@@ -37,7 +37,15 @@ public class LifecycleActionService {
         this.registry = registry;
     }
 
-    public LifecycleActionResultDTO execute(Long subscriptionId, String type, Map<String, Object> data) {
+    public LifecycleActionResultDTO executeProductAction(Long subscriptionId, String type, Map<String, Object> data) {
+        return execute(subscriptionId, type, data, LifecycleDomain.PRODUCT);
+    }
+
+    public LifecycleActionResultDTO executeServiceAction(Long subscriptionId, String type, Map<String, Object> data) {
+        return execute(subscriptionId, type, data, LifecycleDomain.SERVICE);
+    }
+
+    private LifecycleActionResultDTO execute(Long subscriptionId, String type, Map<String, Object> data, LifecycleDomain requiredDomain) {
         Subscription subscription = subscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new SubscriptionNotFoundException(
                         "No subscription exists with id " + subscriptionId));
@@ -45,6 +53,11 @@ public class LifecycleActionService {
         LifecycleAction action = registry.get(type);
         if (action == null) {
             throw new UnknownLifecycleActionException("Unknown action type: " + type);
+        }
+
+        if (action.domain() != requiredDomain) {
+            throw new WrongLifecycleDomainException(
+                    "Action type " + type + " does not belong to the " + requiredDomain + " domain");
         }
 
         if (!action.eligibleStatuses().contains(subscription.getStatus())) {

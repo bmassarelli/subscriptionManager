@@ -11,6 +11,7 @@ import com.subscriptionmanager.service.lifecycle.InvalidLifecycleTransitionExcep
 import com.subscriptionmanager.service.lifecycle.LifecycleActionValidationException;
 import com.subscriptionmanager.service.lifecycle.SubscriptionNotFoundException;
 import com.subscriptionmanager.service.lifecycle.UnknownLifecycleActionException;
+import com.subscriptionmanager.service.lifecycle.WrongLifecycleDomainException;
 import com.subscriptionmanager.service.resource.InvalidResourceTypeException;
 import com.subscriptionmanager.service.resource.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
@@ -77,6 +78,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(UnknownLifecycleActionException.class)
     public ResponseEntity<Map<String, String>> handleUnknownLifecycleAction(UnknownLifecycleActionException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("type", ex.getMessage()));
+    }
+
+    @ExceptionHandler(WrongLifecycleDomainException.class)
+    public ResponseEntity<Map<String, String>> handleWrongLifecycleDomain(WrongLifecycleDomainException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("type", ex.getMessage()));
     }
 
