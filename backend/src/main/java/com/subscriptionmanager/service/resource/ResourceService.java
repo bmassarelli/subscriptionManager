@@ -10,6 +10,7 @@ import com.subscriptionmanager.service.lifecycle.SubscriptionNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -49,13 +50,8 @@ public class ResourceService {
 
     public void deleteResource(Long subscriptionId, Long resourceId) {
         Subscription subscription = requireSubscription(subscriptionId);
-        // Compare via Service ids rather than resource.getService().getSubscription().getId():
-        // Resource.service is a lazy @ManyToOne proxy, and dereferencing through it to
-        // Subscription would force-initialize that proxy. Reading a proxy's own id (getId())
-        // never triggers initialization, so this stays safe even with open-in-view disabled.
-        Long serviceId = subscription.getService().getId();
         Resource resource = resourceRepository.findById(resourceId)
-                .filter(r -> r.getService().getId().equals(serviceId))
+                .filter(r -> Objects.equals(r.getService().getSubscription().getId(), subscription.getId()))
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No resource exists with id " + resourceId + " for subscription " + subscriptionId));
         resourceRepository.delete(resource);
