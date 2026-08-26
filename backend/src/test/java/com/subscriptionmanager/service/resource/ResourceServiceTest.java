@@ -44,6 +44,7 @@ class ResourceServiceTest {
                 LocalDate.now(), new BigDecimal("10.00"));
         com.subscriptionmanager.entity.Service svc =
                 new com.subscriptionmanager.entity.Service(subscription, "MOBILE_BSCS9", null, null);
+        svc.setId(100L);
         subscription.setService(svc);
     }
 
@@ -159,6 +160,7 @@ class ResourceServiceTest {
                 "AC", LocalDate.now(), new BigDecimal("5.00"));
         com.subscriptionmanager.entity.Service otherService =
                 new com.subscriptionmanager.entity.Service(otherSubscription, "FIXED_BSCS7", null, null);
+        otherService.setId(200L);
         otherSubscription.setService(otherService);
         Resource resource = new Resource(otherSubscription.getService(), "IP", "10.0.0.1");
         resource.setId(7L);

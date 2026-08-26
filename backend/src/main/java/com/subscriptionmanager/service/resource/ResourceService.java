@@ -51,7 +51,7 @@ public class ResourceService {
     public void deleteResource(Long subscriptionId, Long resourceId) {
         Subscription subscription = requireSubscription(subscriptionId);
         Resource resource = resourceRepository.findById(resourceId)
-                .filter(r -> Objects.equals(r.getService().getSubscription().getId(), subscription.getId()))
+                .filter(r -> Objects.equals(r.getService().getId(), subscription.getService().getId()))
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No resource exists with id " + resourceId + " for subscription " + subscriptionId));
         resourceRepository.delete(resource);
