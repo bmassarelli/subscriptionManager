@@ -103,6 +103,11 @@ public class Subscription {
     // its own table/entity. See Service's class Javadoc for the platform vs productOffering
     // distinction. Referenced fully-qualified (no import) for naming-collision consistency with
     // @Service-annotated files, per convention — see SubscriptionService.java.
+    // NOTE: fetch = LAZY is not truly lazy here — this project has no bytecode enhancement
+    // configured, so Hibernate cannot build a lazy proxy for the non-owning side of a @OneToOne
+    // and loads `service` eagerly on every Subscription fetch regardless of this hint. That is
+    // what keeps getById()/update()/lifecycle actions correct without an explicit JOIN FETCH —
+    // do not "fix" the extra SELECT by adding bytecode enhancement without accounting for that.
     @OneToOne(mappedBy = "subscription", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private com.subscriptionmanager.entity.Service service;
 

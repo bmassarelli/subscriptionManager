@@ -31,7 +31,7 @@ public class ResourceService {
         requireSubscription(subscriptionId);
         return resourceRepository.findByService_Subscription_IdOrderByIdAsc(subscriptionId)
                 .stream()
-                .map(this::toDTO)
+                .map(resource -> toDTO(resource, subscriptionId))
                 .collect(Collectors.toList());
     }
 
@@ -44,13 +44,18 @@ public class ResourceService {
         }
 
         Resource resource = new Resource(subscription.getService(), request.getResourceType(), request.getValue());
-        return toDTO(resourceRepository.save(resource));
+        return toDTO(resourceRepository.save(resource), subscriptionId);
     }
 
     public void deleteResource(Long subscriptionId, Long resourceId) {
-        requireSubscription(subscriptionId);
+        Subscription subscription = requireSubscription(subscriptionId);
+        // Compare via Service ids rather than resource.getService().getSubscription().getId():
+        // Resource.service is a lazy @ManyToOne proxy, and dereferencing through it to
+        // Subscription would force-initialize that proxy. Reading a proxy's own id (getId())
+        // never triggers initialization, so this stays safe even with open-in-view disabled.
+        Long serviceId = subscription.getService().getId();
         Resource resource = resourceRepository.findById(resourceId)
-                .filter(r -> r.getService().getSubscription().getId().equals(subscriptionId))
+                .filter(r -> r.getService().getId().equals(serviceId))
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No resource exists with id " + resourceId + " for subscription " + subscriptionId));
         resourceRepository.delete(resource);
@@ -62,10 +67,10 @@ public class ResourceService {
                         "No subscription exists with id " + subscriptionId));
     }
 
-    private ResourceDTO toDTO(Resource resource) {
+    private ResourceDTO toDTO(Resource resource, Long subscriptionId) {
         return new ResourceDTO(
                 resource.getId(),
-                resource.getService().getSubscription().getId(),
+                subscriptionId,
                 resource.getResourceType(),
                 resource.getValue());
     }

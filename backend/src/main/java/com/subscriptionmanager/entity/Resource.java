@@ -13,7 +13,7 @@ public class Resource {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "SERVICE_ID")
+    @JoinColumn(name = "SERVICE_ID", nullable = false)
     private com.subscriptionmanager.entity.Service service;
 
     @Column(name = "RESOURCE_TYPE")
