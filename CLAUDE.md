@@ -14,7 +14,9 @@ subscriptionManager/
 │   ├── 002-lifecycle-actions.sql      # lifecycle-mutable columns + OPERATIONS table
 │   ├── 003-hardening.sql              # PRE_SUSPEND_STATUS + CLIENT email/msisdn uniqueness
 │   ├── 004-resources.sql              # RESOURCES table + SEQ_RESOURCE_ID + trigger
-│   └── 005-product-offering.sql       # PRODUCT_OFFERING table + SUBSCRIPTIONS FK, drops PO
+│   ├── 005-product-offering.sql       # PRODUCT_OFFERING table + SUBSCRIPTIONS FK, drops PO
+│   └── 006-service.sql                # SERVICE table (PLATFORM/MSISDN/SIM_ICCID moved off
+│                                       # SUBSCRIPTIONS); RESOURCES FK swapped to SERVICE_ID
 ├── backend/                            # Spring Boot 3, Java 21, Maven
 │   └── src/main/
 │       ├── java/com/subscriptionmanager/
@@ -43,8 +45,9 @@ subscriptionManager/
 │       │   ├── entity/
 │       │   │   ├── Client.java / Subscription.java (full column mapping incl. PRE_SUSPEND_STATUS)
 │       │   │   ├── Platform.java / PaymentMode.java / ProductOffering.java
+│       │   │   ├── Service.java (PLATFORM/MSISDN/SIM_ICCID, 1:1 with Subscription)
 │       │   │   ├── Operation.java (lifecycle audit trail)
-│       │   │   └── Resource.java (IP/VLAN/CPE/PORT/EQUIPMENT/NODE)
+│       │   │   └── Resource.java (IP/VLAN/CPE/PORT/EQUIPMENT/NODE; FKs to Service)
 │       │   ├── repository/
 │       │   │   ├── ClientRepository.java / SubscriptionRepository.java
 │       │   │   ├── PlatformRepository.java / PaymentModeRepository.java / ProductOfferingRepository.java
@@ -142,20 +145,23 @@ codebase anymore.
 
 ## Database
 
-Oracle DB, schema: `SUBSCRIPTION_MANAGER`. All five migrations (`001`–`005`) are
+Oracle DB, schema: `SUBSCRIPTION_MANAGER`. All six migrations (`001`–`006`) are
 applied to the live training DB. Main tables:
 
 - `CLIENT` — CLIENT_ID, NAME, LAST_NAME, EMAIL, MSISDN (EMAIL and MSISDN are
   unique — `UQ_CLIENT_EMAIL`, `UQ_CLIENT_MSISDN`, added in `003-hardening.sql`)
-- `SUBSCRIPTIONS` — ID, CLIENT_ID, PLATFORM, CONTRACT, STATUS, AMOUNT, dates,
-  MSISDN, SIM_ICCID, PRE_SUSPEND_STATUS (remembers status before a suspend, for
+- `SUBSCRIPTIONS` — ID, CLIENT_ID, CONTRACT, STATUS, AMOUNT, dates,
+  PRE_SUSPEND_STATUS (remembers status before a suspend, for
   Reconnect), PRODUCT_OFFERING_ID (FK to `PRODUCT_OFFERING`, added in
   `005-product-offering.sql`, replacing the old unused `PO` free-text column)
+  — PLATFORM/MSISDN/SIM_ICCID moved off this table in `006-service.sql`, see `SERVICE` below
 - `OPERATIONS` — lifecycle-action audit trail (added in `002-lifecycle-actions.sql`)
-- `RESOURCES` — ID, SUBSCRIPTION_ID, RESOURCE_TYPE (`IP`/`VLAN`/`CPE`/`PORT`/
-  `EQUIPMENT`/`NODE`), VALUE (added in `004-resources.sql`; MSISDN/SIM_ICCID stay
-  dedicated `SUBSCRIPTIONS` columns rather than living here)
+- `RESOURCES` — ID, SERVICE_ID, RESOURCE_TYPE (`IP`/`VLAN`/`CPE`/`PORT`/
+  `EQUIPMENT`/`NODE`), VALUE (added in `004-resources.sql`; FK swapped from
+  SUBSCRIPTION_ID to SERVICE_ID in `006-service.sql`)
 - `PRODUCT_OFFERING` — ID, NAME (catalog for `po`, added in `005-product-offering.sql`)
+- `SERVICE` — ID, SUBSCRIPTION_ID (FK to `SUBSCRIPTIONS`, unique — 1:1), PLATFORM,
+  MSISDN, SIM_ICCID (added in `006-service.sql`, extracted off `SUBSCRIPTIONS`)
 
 Full column reference is in `README.md`.
 
@@ -239,10 +245,11 @@ endpoint — see `subscription-lifecycle` under Architecture Notes below.
   `/api/subscriptions/{id}/resources`), not a `LifecycleAction` — no `Operation`
   is recorded for assigning/removing a resource
 - Valid `resourceType`s: `IP`, `VLAN`, `CPE`, `PORT`, `EQUIPMENT`, `NODE`.
-  MSISDN/SIM ICCID intentionally stay on `SUBSCRIPTIONS` (owned by the
+  MSISDN/SIM ICCID intentionally stay dedicated columns on `SERVICE` (owned by the
   `CHANGE_MSISDN`/`CHANGE_SIM` lifecycle actions) rather than living in
   `RESOURCES` — see the resolved open question in
   `openspec/changes/archive/2026-08-17-subscription-resources-module/proposal.md`
+  (`Resource` FKs to `Service` — see `docs/superpowers/specs/2026-08-26-service-entity-design.md`)
 
 #### Operations & Dashboard modules (`subscription-operations`, `subscription-dashboard`)
 - `GET /api/operations` (all subscriptions) backs the Operations sidebar module;

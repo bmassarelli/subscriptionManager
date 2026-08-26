@@ -44,7 +44,6 @@ Stores customer information: email, first name, last name, and MSISDN.
 | CLIENT_ID          | NUMBER          | Reference to the client                                  |
 | ENTRY_DATE         | DATE            | Record creation date                                     |
 | MODIFY_DATE        | DATE            | Last update date — updated on every change               |
-| PLATFORM           | VARCHAR2(100)   | Charging platform (e.g., `MOBILE_BSCS9`)                 |
 | CONTRACT           | VARCHAR2(400)   | Contract identifier                                      |
 | STATUS             | VARCHAR2(2)     | Current subscription status (see status table below)     |
 | ACTIVATE_DATE      | DATE            | Effective start date                                     |
@@ -61,8 +60,22 @@ Stores customer information: email, first name, last name, and MSISDN.
 | PROMOTION          | NUMBER          | Promotion ID from the promotions application             |
 | PAYMENT_MODE_ID    | NUMBER          | FK to `PAYMENT_MODE` — set on creation, optional          |
 | PRODUCT_OFFERING_ID | NUMBER         | FK to `PRODUCT_OFFERING` — set on creation, optional      |
-| MSISDN             | VARCHAR2(400)   | This subscription's own phone number (set via the `CHANGE_MSISDN` lifecycle action; distinct from the client's contact MSISDN on `CLIENT`) |
-| SIM_ICCID          | VARCHAR2(400)   | This subscription's SIM/eSIM identifier (set via the `CHANGE_SIM` lifecycle action) |
+
+> `PLATFORM`, `MSISDN`, and `SIM_ICCID` used to live on `SUBSCRIPTIONS` directly; they were
+> extracted into their own `SERVICE` table (see below), 1:1 with `SUBSCRIPTIONS`.
+
+### `SERVICE`
+
+One row per subscription (1:1 with `SUBSCRIPTIONS`) — the technical-realization attributes
+of a subscription: access + billing engine, MSISDN, SIM/eSIM identifier.
+
+| Column          | Type            | Description                                              |
+|-----------------|-----------------|------------------------------------------------------------|
+| ID              | NUMBER PK       | Sequence-generated service ID                            |
+| SUBSCRIPTION_ID | NUMBER FK       | Reference to the subscription (unique — one `SERVICE` row per subscription) |
+| PLATFORM        | VARCHAR2(100)   | Charging platform (e.g., `MOBILE_BSCS9`)                 |
+| MSISDN          | VARCHAR2(400)   | This subscription's own phone number (set via the `CHANGE_MSISDN` lifecycle action; distinct from the client's contact MSISDN on `CLIENT`) |
+| SIM_ICCID       | VARCHAR2(400)   | This subscription's SIM/eSIM identifier (set via the `CHANGE_SIM` lifecycle action) |
 
 ### `OPERATIONS`
 
