@@ -21,7 +21,8 @@ const BASE_DETAIL = {
   amount: 9.99,
   subscriptionMsisdn: null,
   simIccid: null,
-  availableActions: ['SUSPEND', 'CANCEL', 'CHANGE_PLAN', 'CHANGE_MSISDN', 'CHANGE_SIM'],
+  availableProductActions: ['SUSPEND', 'CANCEL'],
+  availableServiceActions: ['CHANGE_PLAN', 'CHANGE_MSISDN', 'CHANGE_SIM'],
 };
 
 const OPERATIONS = [
@@ -68,7 +69,7 @@ test('renders fetched subscription data and operation history as a timeline', as
 });
 
 test('renders only the fetched available actions as buttons', async () => {
-  mockFetch({ detail: { ...BASE_DETAIL, status: 'SU', availableActions: ['RECONNECT', 'CANCEL'] } });
+  mockFetch({ detail: { ...BASE_DETAIL, status: 'SU', availableProductActions: ['RECONNECT', 'CANCEL'], availableServiceActions: [] } });
   render(<SubscriptionDetail subscriptionId={1} onBack={jest.fn()} />);
 
   await screen.findByText('John Doe');
@@ -87,7 +88,7 @@ test('submitting an action successfully refreshes the screen', async () => {
   userEvent.click(screen.getByRole('button', { name: 'Suspend' }));
 
   global.fetch.mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => ({}) }));
-  const refreshedDetail = { ...BASE_DETAIL, status: 'SU', availableActions: ['RECONNECT', 'CANCEL'] };
+  const refreshedDetail = { ...BASE_DETAIL, status: 'SU', availableProductActions: ['RECONNECT', 'CANCEL'], availableServiceActions: [] };
   global.fetch
     .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => refreshedDetail }))
     .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => OPERATIONS }));
@@ -95,6 +96,43 @@ test('submitting an action successfully refreshes the screen', async () => {
   userEvent.click(screen.getByRole('button', { name: /^submit$/i }));
 
   await waitFor(() => expect(screen.getByRole('button', { name: 'Reconnect' })).toBeInTheDocument());
+});
+
+test('submitting a product action posts to product-actions and a service action posts to service-actions', async () => {
+  const detail = { ...BASE_DETAIL, availableProductActions: ['SUSPEND'], availableServiceActions: ['CHANGE_PLAN'] };
+  mockFetch({ detail });
+  render(<SubscriptionDetail subscriptionId={1} onBack={jest.fn()} />);
+  await screen.findByText('John Doe');
+
+  userEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+
+  global.fetch
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => ({}) })) // POST product action
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => detail })) // refresh detail
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => OPERATIONS })) // refresh operations
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => RESOURCES })); // refresh resources
+
+  userEvent.click(screen.getByRole('button', { name: /^submit$/i }));
+
+  await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+    'http://localhost:8080/api/subscriptions/1/product-actions',
+    expect.objectContaining({ method: 'POST' }),
+  ));
+
+  userEvent.click(screen.getByRole('button', { name: 'Change Plan' }));
+
+  global.fetch
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => ({}) })) // POST service action
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => detail })) // refresh detail
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => OPERATIONS })) // refresh operations
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => RESOURCES })); // refresh resources
+
+  userEvent.click(screen.getByRole('button', { name: /^submit$/i }));
+
+  await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+    'http://localhost:8080/api/subscriptions/1/service-actions',
+    expect.objectContaining({ method: 'POST' }),
+  ));
 });
 
 test('renders fetched resources', async () => {

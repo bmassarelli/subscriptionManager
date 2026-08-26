@@ -26,6 +26,7 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeAction, setActiveAction] = useState(null);
+  const [activeActionDomain, setActiveActionDomain] = useState(null);
   const [actionValues, setActionValues] = useState({});
   const [actionError, setActionError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -76,14 +77,16 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
       .catch(() => setPlatforms([]));
   }, []);
 
-  function openAction(type) {
+  function openAction(type, domain) {
     setActiveAction(type);
+    setActiveActionDomain(domain);
     setActionValues(type === 'CANCEL' ? { immediate: false } : {});
     setActionError(null);
   }
 
   function closeAction() {
     setActiveAction(null);
+    setActiveActionDomain(null);
     setActionValues({});
     setActionError(null);
   }
@@ -166,7 +169,7 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
     setSubmitting(true);
     setActionError(null);
     try {
-      const res = await fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}/actions`, {
+      const res = await fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}/${activeActionDomain === 'product' ? 'product-actions' : 'service-actions'}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: activeAction, ...actionValues }),
@@ -279,16 +282,26 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
 
       <div className="mb-3">
         <h3 className="h6">Lifecycle Actions</h3>
-        {detail.availableActions.length === 0 ? (
+        {detail.availableProductActions.length === 0 && detail.availableServiceActions.length === 0 ? (
           <EmptyState message="No actions available for this subscription's status." />
         ) : (
           <div className="d-flex gap-2 flex-wrap">
-            {detail.availableActions.map(type => (
+            {detail.availableProductActions.map(type => (
               <button
                 key={type}
                 type="button"
                 className="btn btn-outline-primary btn-sm"
-                onClick={() => openAction(type)}
+                onClick={() => openAction(type, 'product')}
+              >
+                {ACTION_LABELS[type] || type}
+              </button>
+            ))}
+            {detail.availableServiceActions.map(type => (
+              <button
+                key={type}
+                type="button"
+                className="btn btn-outline-primary btn-sm"
+                onClick={() => openAction(type, 'service')}
               >
                 {ACTION_LABELS[type] || type}
               </button>

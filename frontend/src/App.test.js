@@ -12,7 +12,8 @@ const DETAIL = {
   platform: 'MOBILE_BSCS9', contract: 'CONTR_001', po: null, paymentModeName: null, status: 'AC',
   entryDate: '2026-08-01', activateDate: null, deactivateDate: null, cancelDate: null,
   startTrialDate: null, endTrialDate: null, amount: 9.99, subscriptionMsisdn: null, simIccid: null,
-  availableActions: ['SUSPEND', 'CANCEL'],
+  availableProductActions: ['SUSPEND', 'CANCEL'],
+  availableServiceActions: [],
 };
 
 const DASHBOARD_SUMMARY = {
