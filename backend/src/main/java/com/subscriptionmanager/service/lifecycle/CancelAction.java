@@ -43,7 +43,7 @@ public class CancelAction implements LifecycleAction {
             subscription.setDeactivateDate(today);
         }
 
-        long releasedResources = resourceRepository.deleteBySubscriptionId(subscription.getId());
+        long releasedResources = resourceRepository.deleteByService_Subscription_Id(subscription.getId());
 
         String description = from + " -> CA" + (immediate ? " (immediate)" : "");
         if (releasedResources > 0) {

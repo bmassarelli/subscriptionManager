@@ -31,9 +31,9 @@ public class ChangeMsisdnAction implements LifecycleAction {
 
     @Override
     public String apply(Subscription subscription, Map<String, Object> data) {
-        String oldMsisdn = subscription.getMsisdn();
+        String oldMsisdn = subscription.getService().getMsisdn();
         String newMsisdn = (String) data.get("msisdn");
-        subscription.setMsisdn(newMsisdn);
+        subscription.getService().setMsisdn(newMsisdn);
         return (oldMsisdn == null ? "none" : oldMsisdn) + " -> " + newMsisdn;
     }
 }

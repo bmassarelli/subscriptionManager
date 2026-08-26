@@ -62,8 +62,13 @@ public class SubscriptionService {
                 .orElseThrow(() -> new InvalidPlatformException(
                         "No platform exists with name " + request.getPlatform()));
 
-        Subscription subscription = new Subscription(null, client, request.getPlatform(),
+        Subscription subscription = new Subscription(null, client,
                 request.getContract(), "TR", LocalDate.now(), request.getAmount());
+
+        com.subscriptionmanager.entity.Service service =
+                new com.subscriptionmanager.entity.Service(subscription, request.getPlatform(), null, null);
+        subscription.setService(service);
+        service.setSubscription(subscription);
 
         if (request.getPaymentModeId() != null) {
             PaymentMode paymentMode = paymentModeRepository.findById(request.getPaymentModeId())
@@ -96,7 +101,7 @@ public class SubscriptionService {
                 clientName,
                 s.getClient().getEmail(),
                 s.getClient().getMsisdn(),
-                s.getPlatform(),
+                s.getService().getPlatform(),
                 s.getContract(),
                 s.getProductOffering() == null ? null : s.getProductOffering().getName(),
                 s.getPaymentMode() == null ? null : s.getPaymentMode().getName(),
@@ -108,9 +113,9 @@ public class SubscriptionService {
                 s.getStartTrialDate(),
                 s.getEndTrialDate(),
                 s.getAmount(),
-                s.getMsisdn(),
-                s.getSimIccid(),
-                new ServiceDTO(s.getPlatform(), s.getMsisdn(), s.getSimIccid()),
+                s.getService().getMsisdn(),
+                s.getService().getSimIccid(),
+                new ServiceDTO(s.getService().getPlatform(), s.getService().getMsisdn(), s.getService().getSimIccid()),
                 availableActions
         );
     }
@@ -133,7 +138,7 @@ public class SubscriptionService {
                 clientName,
                 s.getClient().getEmail(),
                 s.getClient().getMsisdn(),
-                s.getPlatform(),
+                s.getService().getPlatform(),
                 s.getContract(),
                 s.getStatus(),
                 s.getEntryDate(),

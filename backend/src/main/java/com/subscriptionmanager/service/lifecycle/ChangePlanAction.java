@@ -38,9 +38,9 @@ public class ChangePlanAction implements LifecycleAction {
 
     @Override
     public String apply(Subscription subscription, Map<String, Object> data) {
-        String oldPlatform = subscription.getPlatform();
+        String oldPlatform = subscription.getService().getPlatform();
         String newPlatform = (String) data.get("platform");
-        subscription.setPlatform(newPlatform);
+        subscription.getService().setPlatform(newPlatform);
 
         Object contract = data.get("contract");
         if (contract instanceof String && !((String) contract).isBlank()) {

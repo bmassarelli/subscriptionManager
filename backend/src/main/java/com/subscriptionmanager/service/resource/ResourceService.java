@@ -29,7 +29,7 @@ public class ResourceService {
 
     public List<ResourceDTO> getResources(Long subscriptionId) {
         requireSubscription(subscriptionId);
-        return resourceRepository.findBySubscriptionIdOrderByIdAsc(subscriptionId)
+        return resourceRepository.findByService_Subscription_IdOrderByIdAsc(subscriptionId)
                 .stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
@@ -43,14 +43,14 @@ public class ResourceService {
                     "resourceType must be one of " + VALID_TYPES);
         }
 
-        Resource resource = new Resource(subscription, request.getResourceType(), request.getValue());
+        Resource resource = new Resource(subscription.getService(), request.getResourceType(), request.getValue());
         return toDTO(resourceRepository.save(resource));
     }
 
     public void deleteResource(Long subscriptionId, Long resourceId) {
         requireSubscription(subscriptionId);
         Resource resource = resourceRepository.findById(resourceId)
-                .filter(r -> r.getSubscription().getId().equals(subscriptionId))
+                .filter(r -> r.getService().getSubscription().getId().equals(subscriptionId))
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No resource exists with id " + resourceId + " for subscription " + subscriptionId));
         resourceRepository.delete(resource);
@@ -65,7 +65,7 @@ public class ResourceService {
     private ResourceDTO toDTO(Resource resource) {
         return new ResourceDTO(
                 resource.getId(),
-                resource.getSubscription().getId(),
+                resource.getService().getSubscription().getId(),
                 resource.getResourceType(),
                 resource.getValue());
     }
