@@ -59,12 +59,16 @@ class LifecycleActionServiceTest {
         lenient().when(subscriptionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(operationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(subscriptionService.toDTO(any())).thenReturn(null);
-        lenient().when(resourceRepository.deleteBySubscriptionId(any())).thenReturn(0L);
+        lenient().when(resourceRepository.deleteByService_Subscription_Id(any())).thenReturn(0L);
     }
 
     private Subscription buildSubscription(String status) {
         Client client = new Client(1L, "John", "Doe", "john@doe.com", "+11234567890");
-        return new Subscription(1L, client, "MOBILE_BSCS9", "CONTR_001", status, LocalDate.now(), new BigDecimal("10.00"));
+        Subscription subscription = new Subscription(1L, client, "CONTR_001", status, LocalDate.now(), new BigDecimal("10.00"));
+        com.subscriptionmanager.entity.Service service =
+                new com.subscriptionmanager.entity.Service(subscription, "MOBILE_BSCS9", null, null);
+        subscription.setService(service);
+        return subscription;
     }
 
     @Test
@@ -164,11 +168,11 @@ class LifecycleActionServiceTest {
     void cancelReleasesResourcesAndNotesItInTheDescription() {
         Subscription subscription = buildSubscription("AC");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
-        when(resourceRepository.deleteBySubscriptionId(1L)).thenReturn(2L);
+        when(resourceRepository.deleteByService_Subscription_Id(1L)).thenReturn(2L);
 
         service.execute(1L, "CANCEL", Map.of("immediate", true));
 
-        verify(resourceRepository).deleteBySubscriptionId(1L);
+        verify(resourceRepository).deleteByService_Subscription_Id(1L);
         ArgumentCaptor<Operation> captor = ArgumentCaptor.forClass(Operation.class);
         verify(operationRepository).save(captor.capture());
         assertTrue(captor.getValue().getDescription().contains("2 resources released"));
@@ -190,11 +194,11 @@ class LifecycleActionServiceTest {
     void nonImmediateCancelStillReleasesResources() {
         Subscription subscription = buildSubscription("AC");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
-        when(resourceRepository.deleteBySubscriptionId(1L)).thenReturn(1L);
+        when(resourceRepository.deleteByService_Subscription_Id(1L)).thenReturn(1L);
 
         service.execute(1L, "CANCEL", Map.of("immediate", false));
 
-        verify(resourceRepository).deleteBySubscriptionId(1L);
+        verify(resourceRepository).deleteByService_Subscription_Id(1L);
     }
 
     @Test
@@ -227,7 +231,7 @@ class LifecycleActionServiceTest {
 
         service.execute(1L, "CHANGE_PLAN", Map.of("platform", "MOBILE_BSCS7"));
 
-        assertEquals("MOBILE_BSCS7", subscription.getPlatform());
+        assertEquals("MOBILE_BSCS7", subscription.getService().getPlatform());
         assertEquals("AC", subscription.getStatus());
     }
 
@@ -239,7 +243,7 @@ class LifecycleActionServiceTest {
 
         assertThrows(LifecycleActionValidationException.class,
                 () -> service.execute(1L, "CHANGE_PLAN", Map.of("platform", "UNKNOWN")));
-        assertEquals("MOBILE_BSCS9", subscription.getPlatform());
+        assertEquals("MOBILE_BSCS9", subscription.getService().getPlatform());
     }
 
     @Test
@@ -258,7 +262,7 @@ class LifecycleActionServiceTest {
 
         service.execute(1L, "CHANGE_MSISDN", Map.of("msisdn", "+19998887777"));
 
-        assertEquals("+19998887777", subscription.getMsisdn());
+        assertEquals("+19998887777", subscription.getService().getMsisdn());
     }
 
     @Test
@@ -277,7 +281,7 @@ class LifecycleActionServiceTest {
 
         service.execute(1L, "CHANGE_SIM", Map.of("simIccid", "8944000000000000000"));
 
-        assertEquals("8944000000000000000", subscription.getSimIccid());
+        assertEquals("8944000000000000000", subscription.getService().getSimIccid());
     }
 
     @Test
@@ -330,7 +334,7 @@ class LifecycleActionServiceTest {
     void listsAllOperationsAcrossSubscriptionsMostRecentFirst() {
         Subscription subscriptionOne = buildSubscription("AC");
         Client otherClient = new Client(2L, "Jane", "Roe", "jane@roe.com", "+19998887777");
-        Subscription subscriptionTwo = new Subscription(2L, otherClient, "FIXED_BSCS7", "CONTR_002",
+        Subscription subscriptionTwo = new Subscription(2L, otherClient, "CONTR_002",
                 "SU", LocalDate.now(), new BigDecimal("5.00"));
         LocalDateTime earlier = LocalDateTime.now().minusHours(1);
         LocalDateTime later = LocalDateTime.now();

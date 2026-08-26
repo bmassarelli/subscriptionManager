@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -77,6 +78,31 @@ class SubscriptionServiceTest {
     }
 
     @Test
+    void createBuildsAndLinksAServiceWithTheRequestedPlatform() {
+        SubscriptionService service = newService();
+
+        Client client = new Client(1L, "John", "Doe", "john@doe.com", "+11234567890");
+        when(clientRepository.findById(1L)).thenReturn(Optional.of(client));
+        when(platformRepository.findByName("MOBILE_BSCS9")).thenReturn(Optional.of(new Platform(1L, "MOBILE_BSCS9")));
+        ArgumentCaptor<Subscription> captor = ArgumentCaptor.forClass(Subscription.class);
+        when(subscriptionRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        SubscriptionRequestDTO request = new SubscriptionRequestDTO();
+        request.setClientId(1L);
+        request.setPlatform("MOBILE_BSCS9");
+        request.setContract("CONTR_001");
+        request.setAmount(new BigDecimal("10.00"));
+
+        service.create(request);
+
+        Subscription saved = captor.getValue();
+        assertEquals(saved, saved.getService().getSubscription());
+        assertEquals("MOBILE_BSCS9", saved.getService().getPlatform());
+        assertNull(saved.getService().getMsisdn());
+        assertNull(saved.getService().getSimIccid());
+    }
+
+    @Test
     void resolvesAndPersistsProductOfferingWhenPoIsProvided() {
         SubscriptionService service = newService();
 
@@ -120,7 +146,11 @@ class SubscriptionServiceTest {
 
     private Subscription buildSubscription(String status) {
         Client client = new Client(1L, "John", "Doe", "john@doe.com", "+11234567890");
-        return new Subscription(1L, client, "MOBILE_BSCS9", "CONTR_001", status, LocalDate.now(), new BigDecimal("10.00"));
+        Subscription subscription = new Subscription(1L, client, "CONTR_001", status, LocalDate.now(), new BigDecimal("10.00"));
+        com.subscriptionmanager.entity.Service service =
+                new com.subscriptionmanager.entity.Service(subscription, "MOBILE_BSCS9", null, null);
+        subscription.setService(service);
+        return subscription;
     }
 
     @Test

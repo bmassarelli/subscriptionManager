@@ -40,16 +40,19 @@ class ResourceServiceTest {
     void setUp() {
         service = new ResourceService(subscriptionRepository, resourceRepository);
         Client client = new Client(1L, "John", "Doe", "john@doe.com", "+11234567890");
-        subscription = new Subscription(1L, client, "MOBILE_BSCS9", "CONTR_001", "AC",
+        subscription = new Subscription(1L, client, "CONTR_001", "AC",
                 LocalDate.now(), new BigDecimal("10.00"));
+        com.subscriptionmanager.entity.Service svc =
+                new com.subscriptionmanager.entity.Service(subscription, "MOBILE_BSCS9", null, null);
+        subscription.setService(svc);
     }
 
     @Test
     void listsResourcesOfARecognizedType() {
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
-        Resource resource = new Resource(subscription, "IP", "10.0.0.1");
+        Resource resource = new Resource(subscription.getService(), "IP", "10.0.0.1");
         resource.setId(1L);
-        when(resourceRepository.findBySubscriptionIdOrderByIdAsc(1L)).thenReturn(List.of(resource));
+        when(resourceRepository.findByService_Subscription_IdOrderByIdAsc(1L)).thenReturn(List.of(resource));
 
         List<ResourceDTO> result = service.getResources(1L);
 
@@ -61,7 +64,7 @@ class ResourceServiceTest {
     @Test
     void listsEmptyWhenNoneAssigned() {
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
-        when(resourceRepository.findBySubscriptionIdOrderByIdAsc(1L)).thenReturn(List.of());
+        when(resourceRepository.findByService_Subscription_IdOrderByIdAsc(1L)).thenReturn(List.of());
 
         assertTrue(service.getResources(1L).isEmpty());
     }
@@ -131,7 +134,7 @@ class ResourceServiceTest {
     @Test
     void deletesAResource() {
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
-        Resource resource = new Resource(subscription, "IP", "10.0.0.1");
+        Resource resource = new Resource(subscription.getService(), "IP", "10.0.0.1");
         resource.setId(7L);
         when(resourceRepository.findById(7L)).thenReturn(Optional.of(resource));
 
@@ -152,9 +155,12 @@ class ResourceServiceTest {
     void deletingThrowsWhenResourceBelongsToAnotherSubscription() {
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
         Client otherClient = new Client(2L, "Jane", "Roe", "jane@roe.com", "+19998887777");
-        Subscription otherSubscription = new Subscription(2L, otherClient, "FIXED_BSCS7", "CONTR_002",
+        Subscription otherSubscription = new Subscription(2L, otherClient, "CONTR_002",
                 "AC", LocalDate.now(), new BigDecimal("5.00"));
-        Resource resource = new Resource(otherSubscription, "IP", "10.0.0.1");
+        com.subscriptionmanager.entity.Service otherService =
+                new com.subscriptionmanager.entity.Service(otherSubscription, "FIXED_BSCS7", null, null);
+        otherSubscription.setService(otherService);
+        Resource resource = new Resource(otherSubscription.getService(), "IP", "10.0.0.1");
         resource.setId(7L);
         when(resourceRepository.findById(7L)).thenReturn(Optional.of(resource));
 
