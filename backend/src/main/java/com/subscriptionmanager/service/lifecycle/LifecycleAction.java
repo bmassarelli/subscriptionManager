@@ -9,7 +9,7 @@ public interface LifecycleAction {
 
     String getType();
 
-    default LifecycleDomain domain() { return LifecycleDomain.PRODUCT; }
+    LifecycleDomain domain();
 
     List<String> eligibleStatuses();
 

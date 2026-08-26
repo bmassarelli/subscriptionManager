@@ -21,6 +21,9 @@ public class CancelAction implements LifecycleAction {
     public String getType() { return "CANCEL"; }
 
     @Override
+    public LifecycleDomain domain() { return LifecycleDomain.PRODUCT; }
+
+    @Override
     public List<String> eligibleStatuses() { return List.of("AC", "TR", "SU"); }
 
     @Override
