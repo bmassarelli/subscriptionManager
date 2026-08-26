@@ -23,8 +23,10 @@ subscriptionManager/
 │       │   ├── controller/
 │       │   │   ├── CatalogController.java             # GET /api/platforms, /api/payment-modes,
 │       │   │   │                                         # /api/product-offerings
-│       │   │   ├── ClientController.java              # GET/POST /api/clients
-│       │   │   ├── SubscriptionController.java         # GET/POST /api/subscriptions
+│       │   │   ├── ClientController.java              # GET/POST /api/clients, GET/PUT/DELETE
+│       │   │   │                                         # /api/clients/{id}
+│       │   │   ├── SubscriptionController.java         # GET/POST /api/subscriptions, PUT
+│       │   │   │                                         # /api/subscriptions/{id} (contract/amount only)
 │       │   │   ├── SubscriptionLifecycleController.java # POST lifecycle actions, GET operations,
 │       │   │   │                                         # GET /api/operations (all), subscription detail
 │       │   │   ├── ResourceController.java             # GET/POST/DELETE /api/subscriptions/{id}/resources
@@ -32,7 +34,8 @@ subscriptionManager/
 │       │   │   └── GlobalExceptionHandler.java         # validation + invalid-reference/not-found -> 400/404
 │       │   ├── dto/
 │       │   │   ├── ClientRequestDTO.java / ClientResponseDTO.java
-│       │   │   ├── SubscriptionDTO.java / SubscriptionRequestDTO.java / SubscriptionDetailDTO.java
+│       │   │   ├── SubscriptionDTO.java / SubscriptionRequestDTO.java / SubscriptionDetailDTO.java /
+│       │   │   │   SubscriptionUpdateDTO.java
 │       │   │   ├── PlatformDTO.java / PaymentModeDTO.java / ProductOfferingDTO.java
 │       │   │   ├── LifecycleActionRequestDTO.java / LifecycleActionResultDTO.java / OperationDTO.java
 │       │   │   ├── ResourceDTO.java / ResourceRequestDTO.java
@@ -52,7 +55,8 @@ subscriptionManager/
 │       │   │   ├── OperationMapper.java / OperationRecorder.java
 │       │   │   ├── InvalidClientReferenceException.java, InvalidPlatformException.java,
 │       │   │   │   InvalidPaymentModeException.java, InvalidProductOfferingException.java,
-│       │   │   │   DuplicateClientFieldException.java
+│       │   │   │   DuplicateClientFieldException.java, ClientNotFoundException.java,
+│       │   │   │   ClientHasSubscriptionsException.java
 │       │   │   ├── lifecycle/                         # SUSPEND/RECONNECT/CANCEL/CHANGE_PLAN/
 │       │   │   │   ├── LifecycleAction.java, LifecycleActionRegistry.java,   # CHANGE_MSISDN/CHANGE_SIM
 │       │   │   │   ├── LifecycleActionService.java     # actions, one per class implementing LifecycleAction
@@ -188,9 +192,11 @@ endpoint — see `subscription-lifecycle` under Architecture Notes below.
 
 ### Backend (Spring Boot)
 - `GET/POST /api/subscriptions`, `GET /api/subscriptions/{id}` (full detail),
-  `GET/POST /api/clients`, `GET /api/platforms`, `GET /api/payment-modes` — no
-  `PUT`/`DELETE` for clients or subscriptions themselves yet (see "What's Not
-  Built Yet")
+  `PUT /api/subscriptions/{id}` (edit `contract`/`amount` only — no `Operation`
+  recorded, unlike the lifecycle actions), `GET/POST /api/clients`,
+  `GET /api/clients/{id}`, `PUT /api/clients/{id}`, `DELETE /api/clients/{id}`
+  (`409` if the client still has subscriptions, via `ClientHasSubscriptionsException`),
+  `GET /api/platforms`, `GET /api/payment-modes`
 - Validation errors and invalid-reference/not-found errors (unknown `clientId`/
   `platform`/`paymentModeId`/`po`/subscription id/resource id) return `400`/`404`
   with a field→message body via `GlobalExceptionHandler` — never a raw `500`
@@ -264,9 +270,6 @@ endpoint — see `subscription-lifecycle` under Architecture Notes below.
 
 ## What's Not Built Yet
 
-- Edit / Delete for clients or subscriptions themselves (creation, listing, and
-  detail view exist; lifecycle actions and resource assignment exist; but there's
-  no way to edit or delete a `CLIENT` or `SUBSCRIPTIONS` row directly)
 - Authentication / authorization
 - Charging/billing, promotions, and payment-received reactivation
 - Real integration with the ROS API or the API Gateway (this app is local-only —
@@ -278,6 +281,9 @@ The Telco-lifecycle roadmap (`subscription-foundation` → `subscription-lifecyc
 → `subscription-detail-view` → `subscription-operations-module` →
 `subscription-audit-history` → `subscription-resources-module` →
 `subscription-dashboard`) is complete and fully archived under
-`openspec/changes/archive/`; `openspec/changes/` itself has no active changes.
+`openspec/changes/archive/`. The most recently shipped change is
+`2026-08-25-add-client-subscription-crud-gaps` (client Edit/Delete, narrow
+subscription contract/amount Edit); `openspec/changes/` itself currently has
+no active changes.
 `openspec/specs/` holds the current-truth capability specs for everything listed
 above.
