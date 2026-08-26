@@ -1,5 +1,7 @@
 package com.subscriptionmanager.controller;
 
+import com.subscriptionmanager.service.ClientHasSubscriptionsException;
+import com.subscriptionmanager.service.ClientNotFoundException;
 import com.subscriptionmanager.service.DuplicateClientFieldException;
 import com.subscriptionmanager.service.InvalidClientReferenceException;
 import com.subscriptionmanager.service.InvalidPaymentModeException;
@@ -56,6 +58,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DuplicateClientFieldException.class)
     public ResponseEntity<Map<String, String>> handleDuplicateClientField(DuplicateClientFieldException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(ex.getField(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(ClientNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleClientNotFound(ClientNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("clientId", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ClientHasSubscriptionsException.class)
+    public ResponseEntity<Map<String, String>> handleClientHasSubscriptions(ClientHasSubscriptionsException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("clientId", ex.getMessage()));
     }
 
     @ExceptionHandler(SubscriptionNotFoundException.class)

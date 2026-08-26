@@ -11,6 +11,8 @@ export default function ClientsModule() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showAddClient, setShowAddClient] = useState(false);
+  const [editingClient, setEditingClient] = useState(null);
+  const [deleteErrors, setDeleteErrors] = useState({});
   const [search, setSearch] = useState('');
 
   const loadClients = useCallback(() => {
@@ -37,6 +39,31 @@ export default function ClientsModule() {
     [clients, search]
   );
 
+  function startEditing(client) {
+    setShowAddClient(false);
+    setEditingClient(client);
+  }
+
+  function stopEditing() {
+    setEditingClient(null);
+  }
+
+  async function handleDelete(clientId) {
+    const res = await fetch(`http://localhost:8080/api/clients/${clientId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const errorBody = await res.json();
+      const message = Object.values(errorBody)[0] || 'Failed to delete client';
+      setDeleteErrors(prev => ({ ...prev, [clientId]: message }));
+      return;
+    }
+    setDeleteErrors(prev => {
+      const next = { ...prev };
+      delete next[clientId];
+      return next;
+    });
+    await loadClients();
+  }
+
   return (
     <div className="page">
       <div className="page__header">
@@ -44,7 +71,10 @@ export default function ClientsModule() {
         <button
           type="button"
           className="btn btn-primary"
-          onClick={() => setShowAddClient(prev => !prev)}
+          onClick={() => {
+            setEditingClient(null);
+            setShowAddClient(prev => !prev);
+          }}
         >
           {showAddClient ? 'Close' : 'Add Client'}
         </button>
@@ -53,6 +83,21 @@ export default function ClientsModule() {
       {showAddClient && (
         <div className="toolbar--panel mb-3">
           <AddClientForm onCreated={loadClients} />
+        </div>
+      )}
+
+      {editingClient && (
+        <div className="toolbar--panel mb-3">
+          <AddClientForm
+            client={editingClient}
+            onSaved={() => {
+              stopEditing();
+              loadClients();
+            }}
+          />
+          <button type="button" className="btn btn-link btn-sm mt-2 p-0" onClick={stopEditing}>
+            Cancel
+          </button>
         </div>
       )}
 
@@ -100,6 +145,7 @@ export default function ClientsModule() {
               <th>Last Name</th>
               <th>Email</th>
               <th>MSISDN</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -110,6 +156,25 @@ export default function ClientsModule() {
                 <td>{client.lastName}</td>
                 <td>{client.email}</td>
                 <td className="font-mono">{client.msisdn}</td>
+                <td>
+                  <button
+                    type="button"
+                    className="btn btn-link btn-sm p-0 me-3"
+                    onClick={() => startEditing(client)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-link btn-sm text-danger p-0"
+                    onClick={() => handleDelete(client.clientId)}
+                  >
+                    Delete
+                  </button>
+                  {deleteErrors[client.clientId] && (
+                    <div className="text-danger small mt-1">{deleteErrors[client.clientId]}</div>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

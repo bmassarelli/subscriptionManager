@@ -151,6 +151,47 @@ test('removing a resource refreshes the resources list', async () => {
   expect(await screen.findByText(/no resources assigned yet/i)).toBeInTheDocument();
 });
 
+test('editing contract and amount refreshes the displayed values', async () => {
+  mockFetch();
+  render(<SubscriptionDetail subscriptionId={1} onBack={jest.fn()} />);
+  await screen.findByText('John Doe');
+
+  userEvent.click(screen.getByRole('button', { name: 'Edit' }));
+  userEvent.clear(screen.getByLabelText('Contract'));
+  userEvent.type(screen.getByLabelText('Contract'), 'CONTR_002');
+
+  const refreshedDetail = { ...BASE_DETAIL, contract: 'CONTR_002', amount: 19.99 };
+  global.fetch
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => refreshedDetail })) // PUT
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => refreshedDetail })) // refresh detail
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => OPERATIONS })) // refresh operations
+    .mockImplementationOnce(() => Promise.resolve({ ok: true, json: async () => RESOURCES })); // refresh resources
+
+  userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+
+  expect(await screen.findByText('CONTR_002')).toBeInTheDocument();
+});
+
+test('a rejected subscription edit shows its error without changing the displayed data', async () => {
+  mockFetch();
+  render(<SubscriptionDetail subscriptionId={1} onBack={jest.fn()} />);
+  await screen.findByText('John Doe');
+
+  userEvent.click(screen.getByRole('button', { name: 'Edit' }));
+  userEvent.clear(screen.getByLabelText('Amount'));
+  userEvent.type(screen.getByLabelText('Amount'), '-5');
+
+  global.fetch.mockImplementationOnce(() => Promise.resolve({
+    ok: false,
+    json: async () => ({ amount: 'amount must be positive' }),
+  }));
+
+  userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+
+  expect(await screen.findByText('amount must be positive')).toBeInTheDocument();
+  expect(screen.getByText('CONTR_001')).toBeInTheDocument();
+});
+
 test('a rejected action shows its error without changing the displayed data', async () => {
   mockFetch();
   render(<SubscriptionDetail subscriptionId={1} onBack={jest.fn()} />);

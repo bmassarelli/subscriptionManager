@@ -97,3 +97,62 @@ test('shows a no-match message when the search matches nothing, and clearing res
   userEvent.click(screen.getByRole('button', { name: /clear search/i }));
   expect(await screen.findByText('Alice')).toBeInTheDocument();
 });
+
+test('clicking Edit shows a form pre-filled with that client\'s data', async () => {
+  global.fetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ([
+      { clientId: 1, name: 'John', lastName: 'Doe', email: 'john@doe.com', msisdn: '+11234567890' },
+    ]),
+  });
+
+  render(<ClientsModule />);
+  expect(await screen.findByText('John')).toBeInTheDocument();
+
+  userEvent.click(screen.getByRole('button', { name: /edit/i }));
+
+  expect(screen.getByLabelText('Name')).toHaveValue('John');
+  expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument();
+});
+
+test('deleting a client with no subscriptions removes it from the list', async () => {
+  global.fetch
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ([
+        { clientId: 1, name: 'John', lastName: 'Doe', email: 'john@doe.com', msisdn: '+11234567890' },
+      ]),
+    }) // initial load
+    .mockResolvedValueOnce({ ok: true, status: 204 }) // delete
+    .mockResolvedValueOnce({ ok: true, json: async () => ([]) }); // refresh after delete
+
+  render(<ClientsModule />);
+  expect(await screen.findByText('John')).toBeInTheDocument();
+
+  userEvent.click(screen.getByRole('button', { name: /delete/i }));
+
+  await waitFor(() => expect(screen.queryByText('John')).not.toBeInTheDocument());
+});
+
+test('deleting a client blocked by subscriptions shows the reason and keeps the row', async () => {
+  global.fetch
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ([
+        { clientId: 1, name: 'John', lastName: 'Doe', email: 'john@doe.com', msisdn: '+11234567890' },
+      ]),
+    }) // initial load
+    .mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      json: async () => ({ clientId: 'Cannot delete client 1: 2 subscription(s) exist' }),
+    }); // delete rejected
+
+  render(<ClientsModule />);
+  expect(await screen.findByText('John')).toBeInTheDocument();
+
+  userEvent.click(screen.getByRole('button', { name: /delete/i }));
+
+  expect(await screen.findByText(/cannot delete client 1/i)).toBeInTheDocument();
+  expect(screen.getByText('John')).toBeInTheDocument();
+});

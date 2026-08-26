@@ -7,6 +7,7 @@ import com.subscriptionmanager.service.InvalidPaymentModeException;
 import com.subscriptionmanager.service.InvalidPlatformException;
 import com.subscriptionmanager.service.InvalidProductOfferingException;
 import com.subscriptionmanager.service.SubscriptionService;
+import com.subscriptionmanager.service.lifecycle.SubscriptionNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -19,9 +20,11 @@ import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -246,5 +249,56 @@ class SubscriptionControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.po").value("claroVideo"));
+    }
+
+    @Test
+    void updatesContractAndAmount() throws Exception {
+        when(subscriptionService.update(eq(1L), any())).thenReturn(new SubscriptionDTO(
+                1L, "John Doe", "john.doe@example.com", "+11234567890",
+                "MOBILE_BSCS9", "CONTR_00002", "TR", LocalDate.now(), new BigDecimal("35.00"), null));
+
+        Map<String, Object> body = Map.of("contract", "CONTR_00002", "amount", 35.00);
+
+        mockMvc.perform(put("/api/subscriptions/1")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contract").value("CONTR_00002"));
+    }
+
+    @Test
+    void rejectsUpdateMissingRequiredField() throws Exception {
+        Map<String, Object> body = Map.of("amount", 35.00);
+
+        mockMvc.perform(put("/api/subscriptions/1")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.contract").exists());
+    }
+
+    @Test
+    void rejectsUpdateWithNonPositiveAmount() throws Exception {
+        Map<String, Object> body = Map.of("contract", "CONTR_00002", "amount", 0);
+
+        mockMvc.perform(put("/api/subscriptions/1")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.amount").exists());
+    }
+
+    @Test
+    void returns404ForNonExistentSubscriptionOnUpdate() throws Exception {
+        when(subscriptionService.update(eq(999L), any()))
+                .thenThrow(new SubscriptionNotFoundException("No subscription exists with id 999"));
+
+        Map<String, Object> body = Map.of("contract", "CONTR_00002", "amount", 35.00);
+
+        mockMvc.perform(put("/api/subscriptions/999")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.id").exists());
     }
 }

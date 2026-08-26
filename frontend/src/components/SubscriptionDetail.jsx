@@ -34,6 +34,10 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
   const [newResourceValue, setNewResourceValue] = useState('');
   const [resourceError, setResourceError] = useState(null);
   const [resourceSubmitting, setResourceSubmitting] = useState(false);
+  const [editingSubscription, setEditingSubscription] = useState(false);
+  const [editValues, setEditValues] = useState({ contract: '', amount: '' });
+  const [editError, setEditError] = useState(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   const loadDetail = useCallback(() => {
     setLoading(true);
@@ -112,6 +116,44 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
     }
   }
 
+  function openEditSubscription() {
+    setEditValues({ contract: detail.contract, amount: String(detail.amount) });
+    setEditError(null);
+    setEditingSubscription(true);
+  }
+
+  function closeEditSubscription() {
+    setEditingSubscription(false);
+    setEditError(null);
+  }
+
+  async function submitEditSubscription(e) {
+    e.preventDefault();
+    setEditSubmitting(true);
+    setEditError(null);
+    try {
+      const res = await fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contract: editValues.contract, amount: Number(editValues.amount) }),
+      });
+
+      if (!res.ok) {
+        const errorBody = await res.json();
+        const message = Object.values(errorBody)[0] || 'Failed to update subscription';
+        setEditError(message);
+        return;
+      }
+
+      setEditingSubscription(false);
+      await loadDetail();
+    } catch (err) {
+      setEditError(err.message);
+    } finally {
+      setEditSubmitting(false);
+    }
+  }
+
   async function removeResource(resourceId) {
     await fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}/resources/${resourceId}`, {
       method: 'DELETE',
@@ -169,7 +211,14 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
 
       <div className="row g-3 mb-3">
         <div className="col-md-6">
-          <h3 className="h6">Subscription</h3>
+          <div className="d-flex justify-content-between align-items-center">
+            <h3 className="h6 mb-0">Subscription</h3>
+            {!editingSubscription && (
+              <button type="button" className="btn btn-link btn-sm p-0" onClick={openEditSubscription}>
+                Edit
+              </button>
+            )}
+          </div>
           <dl className="row mb-0 small">
             <dt className="col-5">Platform</dt><dd className="col-7">{detail.platform}</dd>
             <dt className="col-5">Contract</dt><dd className="col-7 font-mono">{detail.contract}</dd>
@@ -179,6 +228,41 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
             <dt className="col-5">MSISDN</dt><dd className="col-7 font-mono">{detail.subscriptionMsisdn || '—'}</dd>
             <dt className="col-5">SIM/eSIM</dt><dd className="col-7 font-mono">{detail.simIccid || '—'}</dd>
           </dl>
+
+          {editingSubscription && (
+            <form className="border rounded p-3 mt-2 bg-light" onSubmit={submitEditSubscription}>
+              {editError && <div className="alert alert-danger py-2">{editError}</div>}
+              <div className="row g-2 align-items-end">
+                <div className="col-auto">
+                  <label className="form-label" htmlFor="edit-contract">Contract</label>
+                  <input
+                    id="edit-contract"
+                    className="form-control"
+                    value={editValues.contract}
+                    onChange={e => setEditValues(prev => ({ ...prev, contract: e.target.value }))}
+                  />
+                </div>
+                <div className="col-auto">
+                  <label className="form-label" htmlFor="edit-amount">Amount</label>
+                  <input
+                    id="edit-amount"
+                    type="number"
+                    className="form-control"
+                    value={editValues.amount}
+                    onChange={e => setEditValues(prev => ({ ...prev, amount: e.target.value }))}
+                  />
+                </div>
+                <div className="col-auto d-flex gap-2">
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={editSubmitting}>
+                    {editSubmitting ? 'Saving...' : 'Save'}
+                  </button>
+                  <button type="button" className="btn btn-outline-secondary btn-sm" onClick={closeEditSubscription}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
         </div>
         <div className="col-md-6">
           <h3 className="h6">Dates</h3>

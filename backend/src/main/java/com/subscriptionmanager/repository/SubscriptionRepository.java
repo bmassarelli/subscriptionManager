@@ -12,4 +12,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
 
     @Query("SELECT s.status, COUNT(s) FROM Subscription s GROUP BY s.status")
     List<Object[]> countByStatus();
+
+    long countByClient_ClientId(Long clientId);
 }

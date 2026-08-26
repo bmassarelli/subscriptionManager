@@ -3,6 +3,7 @@ package com.subscriptionmanager.service;
 import com.subscriptionmanager.dto.SubscriptionDTO;
 import com.subscriptionmanager.dto.SubscriptionDetailDTO;
 import com.subscriptionmanager.dto.SubscriptionRequestDTO;
+import com.subscriptionmanager.dto.SubscriptionUpdateDTO;
 import com.subscriptionmanager.dto.ServiceDTO;
 import com.subscriptionmanager.entity.Client;
 import com.subscriptionmanager.entity.PaymentMode;
@@ -112,6 +113,17 @@ public class SubscriptionService {
                 new ServiceDTO(s.getPlatform(), s.getMsisdn(), s.getSimIccid()),
                 availableActions
         );
+    }
+
+    public SubscriptionDTO update(Long id, SubscriptionUpdateDTO request) {
+        Subscription subscription = repository.findById(id)
+                .orElseThrow(() -> new SubscriptionNotFoundException("No subscription exists with id " + id));
+
+        subscription.setContract(request.getContract());
+        subscription.setAmount(request.getAmount());
+
+        Subscription saved = repository.save(subscription);
+        return toDTO(saved);
     }
 
     public SubscriptionDTO toDTO(Subscription s) {

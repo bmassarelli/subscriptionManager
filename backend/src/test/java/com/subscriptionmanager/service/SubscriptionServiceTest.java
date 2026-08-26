@@ -1,8 +1,10 @@
 package com.subscriptionmanager.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.subscriptionmanager.dto.SubscriptionDTO;
 import com.subscriptionmanager.dto.SubscriptionDetailDTO;
 import com.subscriptionmanager.dto.SubscriptionRequestDTO;
+import com.subscriptionmanager.dto.SubscriptionUpdateDTO;
 import com.subscriptionmanager.entity.Client;
 import com.subscriptionmanager.entity.Operation;
 import com.subscriptionmanager.entity.Platform;
@@ -156,5 +158,35 @@ class SubscriptionServiceTest {
         SubscriptionDetailDTO detail = service.getById(1L);
 
         assertTrue(detail.getAvailableActions().isEmpty());
+    }
+
+    @Test
+    void updatesContractAndAmount() {
+        SubscriptionService service = newService();
+        Subscription subscription = buildSubscription("AC");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+        when(subscriptionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        SubscriptionUpdateDTO request = new SubscriptionUpdateDTO();
+        request.setContract("CONTR_002");
+        request.setAmount(new BigDecimal("20.00"));
+
+        SubscriptionDTO result = service.update(1L, request);
+
+        assertEquals("CONTR_002", result.getContract());
+        assertEquals(new BigDecimal("20.00"), result.getAmount());
+        assertEquals("MOBILE_BSCS9", result.getPlatform());
+    }
+
+    @Test
+    void throwsNotFoundForNonExistentSubscriptionOnUpdate() {
+        SubscriptionService service = newService();
+        when(subscriptionRepository.findById(999L)).thenReturn(Optional.empty());
+
+        SubscriptionUpdateDTO request = new SubscriptionUpdateDTO();
+        request.setContract("CONTR_002");
+        request.setAmount(new BigDecimal("20.00"));
+
+        assertThrows(SubscriptionNotFoundException.class, () -> service.update(999L, request));
     }
 }
