@@ -397,16 +397,35 @@ fase 2, no fase 1 (ver §12–13).
 ## 13. Cambios opcionales (fase 2 en adelante — mayor alcance, requieren diseño propio)
 
 1. Introducir **Service** como entidad independiente (tabla + FK desde `RESOURCES`), moviendo
-   `MSISDN`/`SIM_ICCID`/`PLATFORM` conceptualmente ahí.
-2. Separar `Product Order` de `Product` de verdad (hoy están fusionados en `SUBSCRIPTIONS`).
+   `MSISDN`/`SIM_ICCID`/`PLATFORM` conceptualmente ahí. **Resuelto** en
+   `openspec/changes/archive/2026-08-26-introduce-service-entity` — tabla `SERVICE` real, 1:1
+   con `SUBSCRIPTIONS`, `RESOURCES` re-apuntado a `SERVICE_ID`, sin cambio de contrato externo.
+2. Separar `Product Order` de `Product` de verdad (hoy están fusionados en `SUBSCRIPTIONS`). No
+   resuelto — sigue abierto (Fase 3).
 3. Mover `CHANGE_PLAN`/`CHANGE_MSISDN`/`CHANGE_SIM` a un registro/endpoint de "Service actions"
    distinto del de "Product actions" (`CREATE`, `CANCEL`, y el futuro `CHANGE_OFFERING`) — ver §7.
-4. Resolver la ambigüedad entre `DEACTIVATE_DATE` y `CANCEL_DATE`.
+   **Resuelto** en `openspec/changes/archive/2026-08-26-split-lifecycle-action-endpoints` —
+   `POST /product-actions`/`POST /service-actions` reemplazan el endpoint único, sin shim de
+   compatibilidad.
+4. Resolver la ambigüedad entre `DEACTIVATE_DATE` y `CANCEL_DATE`. **Cerrado** — investigado en
+   `openspec/changes/archive/2026-08-25-clarify-deactivate-date-cancel-date`: el código nunca
+   tuvo ambigüedad real (`CancelAction` es el único escritor de ambos campos, ya documentado con
+   precisión en `subscription-lifecycle`/`subscription-status-model`); la única confusión estaba
+   en una nota de `README.md` sobre el contrato externo, ya corregida. `EX`/`ER` siguen sin fecha
+   dedicada porque ningún código local los escribe todavía (no existe pipeline de
+   charging/billing) — decisión explícita de no diseñar eso por adelantado (YAGNI); re-abrir si
+   ese pipeline llega a construirse.
 5. Evaluar si `SIM_ICCID` se modela mejor como `Service characteristic` o como un nuevo
-   `RESOURCE_TYPE = 'SIM'`.
+   `RESOURCE_TYPE = 'SIM'`. **Evaluado** en
+   `openspec/changes/archive/2026-08-26-evaluate-sim-iccid-as-resource` — se decidió mantenerlo
+   como campo dedicado en `Service`: moverlo a `RESOURCES` perdería la auditoría que
+   `CHANGE_SIM` obtiene vía `Operation` (la asignación de `RESOURCES` es CRUD plano, no
+   auditado), perdería la validación de `ChangeSimAction`, y crearía una asimetría con `MSISDN`
+   (que se queda como campo dedicado de todos modos).
 6. Evaluar Account/Billing Management (TMF666/676) para `PAYMENT_MODE`/`PROMOTION` si se decide
-   ampliar el alcance más allá de las 7 APIs pedidas.
-7. Separar `Client` en `Party`/`Individual` + `Customer` (TMF629 completo).
+   ampliar el alcance más allá de las 7 APIs pedidas. No resuelto — sigue abierto (Fase 4).
+7. Separar `Client` en `Party`/`Individual` + `Customer` (TMF629 completo). No resuelto — sigue
+   abierto (Fase 4).
 
 ---
 

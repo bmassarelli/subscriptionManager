@@ -28,6 +28,11 @@ public class Service {
     @Column(name = "MSISDN")
     private String msisdn;
 
+    // Kept as a dedicated field rather than a generic RESOURCE_TYPE='SIM' row — moving it would
+    // drop the audit trail CHANGE_SIM gets via Operation records (RESOURCES assignment is plain
+    // CRUD, not audited), lose ChangeSimAction's non-blank validation, and create an asymmetry
+    // with MSISDN, which stays a dedicated field regardless. See
+    // openspec/changes/archive/2026-08-26-evaluate-sim-iccid-as-resource for the full evaluation.
     @Column(name = "SIM_ICCID")
     private String simIccid;
 
