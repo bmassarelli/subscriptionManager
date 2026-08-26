@@ -50,6 +50,9 @@ public class ResourceService {
 
     public void deleteResource(Long subscriptionId, Long resourceId) {
         Subscription subscription = requireSubscription(subscriptionId);
+        // Compare Service ids directly (both are free proxy-id reads) rather than going through
+        // r.getService().getSubscription() — that hop is a non-identifier property access and would
+        // force Service to initialize under open-in-view=false.
         Resource resource = resourceRepository.findById(resourceId)
                 .filter(r -> Objects.equals(r.getService().getId(), subscription.getService().getId()))
                 .orElseThrow(() -> new ResourceNotFoundException(
