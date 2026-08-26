@@ -13,8 +13,8 @@ public class Resource {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "SUBSCRIPTION_ID")
-    private Subscription subscription;
+    @JoinColumn(name = "SERVICE_ID")
+    private com.subscriptionmanager.entity.Service service;
 
     @Column(name = "RESOURCE_TYPE")
     private String resourceType;
@@ -25,19 +25,19 @@ public class Resource {
     public Resource() {
     }
 
-    public Resource(Subscription subscription, String resourceType, String value) {
-        this.subscription = subscription;
+    public Resource(com.subscriptionmanager.entity.Service service, String resourceType, String value) {
+        this.service = service;
         this.resourceType = resourceType;
         this.value = value;
     }
 
     public Long getId() { return id; }
-    public Subscription getSubscription() { return subscription; }
+    public com.subscriptionmanager.entity.Service getService() { return service; }
     public String getResourceType() { return resourceType; }
     public String getValue() { return value; }
 
     public void setId(Long id) { this.id = id; }
-    public void setSubscription(Subscription subscription) { this.subscription = subscription; }
+    public void setService(com.subscriptionmanager.entity.Service service) { this.service = service; }
     public void setResourceType(String resourceType) { this.resourceType = resourceType; }
     public void setValue(String value) { this.value = value; }
 }

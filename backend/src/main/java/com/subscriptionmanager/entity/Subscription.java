@@ -34,11 +34,6 @@ public class Subscription {
     @JoinColumn(name = "CLIENT_ID")
     private Client client;
 
-    // Service (TMF638) technical-realization attribute — HOW the offering is provisioned/billed.
-    // Not the commercial ProductOffering — see class Javadoc.
-    @Column(name = "PLATFORM")
-    private String platform;
-
     @Column(name = "CONTRACT")
     private String contract;
 
@@ -101,23 +96,23 @@ public class Subscription {
     @JoinColumn(name = "PAYMENT_MODE_ID")
     private PaymentMode paymentMode;
 
-    @Column(name = "MSISDN")
-    private String msisdn;
-
-    @Column(name = "SIM_ICCID")
-    private String simIccid;
-
     @Column(name = "PRE_SUSPEND_STATUS")
     private String preSuspendStatus;
+
+    // Service (TMF638) — technical-realization attributes (platform/msisdn/simIccid), owned by
+    // its own table/entity. See Service's class Javadoc for the platform vs productOffering
+    // distinction. Referenced fully-qualified (no import) for naming-collision consistency with
+    // @Service-annotated files, per convention — see SubscriptionService.java.
+    @OneToOne(mappedBy = "subscription", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private com.subscriptionmanager.entity.Service service;
 
     public Subscription() {
     }
 
-    public Subscription(Long id, Client client, String platform, String contract,
+    public Subscription(Long id, Client client, String contract,
                          String status, LocalDate entryDate, BigDecimal amount) {
         this.id = id;
         this.client = client;
-        this.platform = platform;
         this.contract = contract;
         this.status = status;
         this.entryDate = entryDate;
@@ -126,7 +121,7 @@ public class Subscription {
 
     public Long getId() { return id; }
     public Client getClient() { return client; }
-    public String getPlatform() { return platform; }
+    public com.subscriptionmanager.entity.Service getService() { return service; }
     public String getContract() { return contract; }
     public String getStatus() { return status; }
     public LocalDate getEntryDate() { return entryDate; }
@@ -145,13 +140,11 @@ public class Subscription {
     public String getErrorMsg() { return errorMsg; }
     public Long getPromotion() { return promotion; }
     public PaymentMode getPaymentMode() { return paymentMode; }
-    public String getMsisdn() { return msisdn; }
-    public String getSimIccid() { return simIccid; }
     public String getPreSuspendStatus() { return preSuspendStatus; }
 
     public void setId(Long id) { this.id = id; }
     public void setClient(Client client) { this.client = client; }
-    public void setPlatform(String platform) { this.platform = platform; }
+    public void setService(com.subscriptionmanager.entity.Service service) { this.service = service; }
     public void setContract(String contract) { this.contract = contract; }
     public void setStatus(String status) { this.status = status; }
     public void setEntryDate(LocalDate entryDate) { this.entryDate = entryDate; }
@@ -170,7 +163,5 @@ public class Subscription {
     public void setErrorMsg(String errorMsg) { this.errorMsg = errorMsg; }
     public void setPromotion(Long promotion) { this.promotion = promotion; }
     public void setPaymentMode(PaymentMode paymentMode) { this.paymentMode = paymentMode; }
-    public void setMsisdn(String msisdn) { this.msisdn = msisdn; }
-    public void setSimIccid(String simIccid) { this.simIccid = simIccid; }
     public void setPreSuspendStatus(String preSuspendStatus) { this.preSuspendStatus = preSuspendStatus; }
 }

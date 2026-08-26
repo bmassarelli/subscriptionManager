@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface ResourceRepository extends JpaRepository<Resource, Long> {
-    List<Resource> findBySubscriptionIdOrderByIdAsc(Long subscriptionId);
+    List<Resource> findByService_Subscription_IdOrderByIdAsc(Long subscriptionId);
 
-    long deleteBySubscriptionId(Long subscriptionId);
+    long deleteByService_Subscription_Id(Long subscriptionId);
 }
