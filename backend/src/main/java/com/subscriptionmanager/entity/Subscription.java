@@ -63,9 +63,13 @@ public class Subscription {
     @Column(name = "ACTIVATE_DATE")
     private LocalDate activateDate;
 
+    // Set by CancelAction only, and only when immediate=true; null otherwise, with no other
+    // local writer. See subscription-lifecycle's "Cancel action" requirement.
     @Column(name = "DEACTIVATE_DATE")
     private LocalDate deactivateDate;
 
+    // Set by CancelAction unconditionally on every CANCEL; no other local writer.
+    // See subscription-lifecycle's "Cancel action" requirement.
     @Column(name = "CANCEL_DATE")
     private LocalDate cancelDate;
 

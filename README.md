@@ -234,6 +234,12 @@ Set STATUS = CA
              Network deactivation confirmed
 ```
 
+> **Local implementation note:** the diagram above describes the external ROS contract, which
+> implies some other process may have set `DEACTIVATE_DATE` earlier (hence "remains as originally
+> set"). This app has no such process — the only local code path that ever sets `DEACTIVATE_DATE`
+> is an immediate `CANCEL`. On a non-immediate cancellation, `DEACTIVATE_DATE` simply stays `null`;
+> it is never "restored" to an earlier value, because none was ever set.
+
 #### Subflow: Subscription Manager - Network Deactivate
 
 This subflow is exclusively responsible for triggering the network-side contract deactivation. It is only invoked when `immediate: true`.
