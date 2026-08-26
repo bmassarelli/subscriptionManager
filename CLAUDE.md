@@ -66,7 +66,8 @@ subscriptionManager/
 │       │   │   │   ├── SuspendAction.java, ReconnectAction.java, CancelAction.java,
 │       │   │   │   ├── ChangePlanAction.java, ChangeMsisdnAction.java, ChangeSimAction.java
 │       │   │   │   └── SubscriptionNotFoundException.java, InvalidLifecycleTransitionException.java,
-│       │   │   │       LifecycleActionValidationException.java, UnknownLifecycleActionException.java
+│       │   │   │       LifecycleActionValidationException.java, UnknownLifecycleActionException.java,
+│       │   │   │       WrongLifecycleDomainException.java
 │       │   │   └── resource/
 │       │   │       ├── ResourceService.java            # plain CRUD, not an auditable lifecycle action
 │       │   │       └── InvalidResourceTypeException.java, ResourceNotFoundException.java
@@ -135,7 +136,7 @@ server.port=8080
 cd frontend
 npm install
 npm start        # http://localhost:3000
-npm test         # run tests (81 tests, all passing)
+npm test         # run tests (93 tests, all passing)
 npm run build    # production build
 ```
 
@@ -183,8 +184,8 @@ This is the single, enforced status model — `frontend/src/constants.js` and th
 backend agree on it. New subscriptions are created in `TR`. `ER` is reserved for a
 future charging/activation pipeline; nothing in the current codebase writes it.
 Lifecycle transitions between these statuses (Suspend, Reconnect, Cancel, Change
-Plan, Change MSISDN, Change SIM) are implemented via a single generic action
-endpoint — see `subscription-lifecycle` under Architecture Notes below.
+Plan, Change MSISDN, Change SIM) are implemented via two domain-specific action
+endpoints — see `subscription-lifecycle` under Architecture Notes below.
 
 ## Architecture Notes
 
@@ -226,8 +227,11 @@ endpoint — see `subscription-lifecycle` under Architecture Notes below.
 - `SubscriptionDTO` is a flat projection built from the JOIN; no lazy-loading issues
 
 #### Lifecycle actions (`subscription-lifecycle`, `subscription-detail`)
-- `SubscriptionLifecycleController` exposes one generic action endpoint (`type` +
-  action-specific payload) plus `GET /api/subscriptions/{id}` (detail),
+- `SubscriptionLifecycleController` exposes two domain-specific action endpoints
+  (`POST /api/subscriptions/{id}/product-actions` for `SUSPEND`/`RECONNECT`/
+  `CANCEL`, `POST /api/subscriptions/{id}/service-actions` for `CHANGE_PLAN`/
+  `CHANGE_MSISDN`/`CHANGE_SIM`; each takes `type` + action-specific payload)
+  plus `GET /api/subscriptions/{id}` (detail),
   `GET /api/subscriptions/{id}/operations`, and `GET /api/operations` (all,
   cross-subscription, most recent first)
 - Every action (`SUSPEND`, `RECONNECT`, `CANCEL`, `CHANGE_PLAN`, `CHANGE_MSISDN`,

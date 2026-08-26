@@ -118,10 +118,12 @@ today, purely locally against its own database:
 
 - `GET/POST /api/clients`, `GET/POST /api/subscriptions`, `GET /api/subscriptions/{id}`
 - `GET /api/platforms`, `GET /api/payment-modes`, `GET /api/product-offerings`
-- `POST /api/subscriptions/{id}/actions` — a generic lifecycle-action endpoint
-  (`SUSPEND`, `RECONNECT`, `CANCEL`, `CHANGE_PLAN`, `CHANGE_MSISDN`, `CHANGE_SIM`)
-  that validates the transition against the status table above, applies the
-  change, and records it — see the `OPERATIONS` table above
+- `POST /api/subscriptions/{id}/product-actions` — a lifecycle-action endpoint for
+  product-domain actions (`SUSPEND`, `RECONNECT`, `CANCEL`)
+- `POST /api/subscriptions/{id}/service-actions` — a lifecycle-action endpoint for
+  service-domain actions (`CHANGE_PLAN`, `CHANGE_MSISDN`, `CHANGE_SIM`)
+- Both validate the transition against the status table above, apply the
+  change, and record it — see the `OPERATIONS` table above
 - `GET /api/subscriptions/{id}/operations` — that subscription's operation history
 - A frontend detail screen (per subscription) that triggers those actions
 
