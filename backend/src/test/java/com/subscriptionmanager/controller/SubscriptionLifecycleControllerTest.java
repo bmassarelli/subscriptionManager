@@ -66,6 +66,40 @@ class SubscriptionLifecycleControllerTest {
     }
 
     @Test
+    void executesMarkExpiredAction() throws Exception {
+        SubscriptionDTO subscriptionDTO = new SubscriptionDTO(1L, "John Doe", "john@doe.com", "+11234567890",
+                "MOBILE_BSCS9", "CONTR_001", "EX", LocalDate.now(), new BigDecimal("10.00"), null);
+        OperationDTO operationDTO = new OperationDTO(1L, 1L, "John Doe", "MARK_EXPIRED", "COMPLETED",
+                LocalDateTime.now(), LocalDateTime.now(), null, "AC -> EX");
+        when(service.executeProductAction(eq(1L), eq("MARK_EXPIRED"), any())).thenReturn(
+                new LifecycleActionResultDTO(subscriptionDTO, operationDTO));
+
+        mockMvc.perform(post("/api/subscriptions/1/product-actions")
+                        .contentType("application/json")
+                        .content("{\"type\":\"MARK_EXPIRED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.subscription.status").value("EX"))
+                .andExpect(jsonPath("$.operation.operationType").value("MARK_EXPIRED"));
+    }
+
+    @Test
+    void executesPaymentReceivedAction() throws Exception {
+        SubscriptionDTO subscriptionDTO = new SubscriptionDTO(1L, "John Doe", "john@doe.com", "+11234567890",
+                "MOBILE_BSCS9", "CONTR_001", "AC", LocalDate.now(), new BigDecimal("10.00"), null);
+        OperationDTO operationDTO = new OperationDTO(1L, 1L, "John Doe", "PAYMENT_RECEIVED", "COMPLETED",
+                LocalDateTime.now(), LocalDateTime.now(), null, "EX -> AC");
+        when(service.executeProductAction(eq(1L), eq("PAYMENT_RECEIVED"), any())).thenReturn(
+                new LifecycleActionResultDTO(subscriptionDTO, operationDTO));
+
+        mockMvc.perform(post("/api/subscriptions/1/product-actions")
+                        .contentType("application/json")
+                        .content("{\"type\":\"PAYMENT_RECEIVED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.subscription.status").value("AC"))
+                .andExpect(jsonPath("$.operation.operationType").value("PAYMENT_RECEIVED"));
+    }
+
+    @Test
     void passesActionSpecificFieldsIntoData() throws Exception {
         SubscriptionDTO subscriptionDTO = new SubscriptionDTO(1L, "John Doe", "john@doe.com", "+11234567890",
                 "MOBILE_BSCS9", "CONTR_001", "CA", LocalDate.now(), new BigDecimal("10.00"), null);
