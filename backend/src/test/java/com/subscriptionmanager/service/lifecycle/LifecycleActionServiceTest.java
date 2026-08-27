@@ -49,7 +49,9 @@ class LifecycleActionServiceTest {
                 new CancelAction(resourceRepository),
                 new ChangePlanAction(platformRepository),
                 new ChangeMsisdnAction(),
-                new ChangeSimAction()
+                new ChangeSimAction(),
+                new MarkExpiredAction(),
+                new PaymentReceivedAction()
         );
         LifecycleActionRegistry registry = new LifecycleActionRegistry(actions);
         OperationRecorder operationRecorder = new OperationRecorder(operationRepository, new ObjectMapper());
@@ -126,6 +128,66 @@ class LifecycleActionServiceTest {
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
 
         assertThrows(InvalidLifecycleTransitionException.class, () -> service.executeProductAction(1L, "RECONNECT", Map.of()));
+    }
+
+    @Test
+    void marksActiveSubscriptionExpired() {
+        Subscription subscription = buildSubscription("AC");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        service.executeProductAction(1L, "MARK_EXPIRED", Map.of());
+
+        assertEquals("EX", subscription.getStatus());
+        ArgumentCaptor<Operation> captor = ArgumentCaptor.forClass(Operation.class);
+        verify(operationRepository).save(captor.capture());
+        assertEquals("COMPLETED", captor.getValue().getStatus());
+        assertEquals("AC -> EX", captor.getValue().getDescription());
+    }
+
+    @Test
+    void marksTrialSubscriptionExpired() {
+        Subscription subscription = buildSubscription("TR");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        service.executeProductAction(1L, "MARK_EXPIRED", Map.of());
+
+        assertEquals("EX", subscription.getStatus());
+    }
+
+    @Test
+    void rejectsMarkExpiredOnIneligibleStatus() {
+        Subscription subscription = buildSubscription("SU");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        assertThrows(InvalidLifecycleTransitionException.class,
+                () -> service.executeProductAction(1L, "MARK_EXPIRED", Map.of()));
+        assertEquals("SU", subscription.getStatus());
+        verify(operationRepository, never()).save(any());
+    }
+
+    @Test
+    void reactivatesExpiredSubscriptionOnPaymentReceived() {
+        Subscription subscription = buildSubscription("EX");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        service.executeProductAction(1L, "PAYMENT_RECEIVED", Map.of());
+
+        assertEquals("AC", subscription.getStatus());
+        ArgumentCaptor<Operation> captor = ArgumentCaptor.forClass(Operation.class);
+        verify(operationRepository).save(captor.capture());
+        assertEquals("COMPLETED", captor.getValue().getStatus());
+        assertEquals("EX -> AC", captor.getValue().getDescription());
+    }
+
+    @Test
+    void rejectsPaymentReceivedOnIneligibleStatus() {
+        Subscription subscription = buildSubscription("AC");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        assertThrows(InvalidLifecycleTransitionException.class,
+                () -> service.executeProductAction(1L, "PAYMENT_RECEIVED", Map.of()));
+        assertEquals("AC", subscription.getStatus());
+        verify(operationRepository, never()).save(any());
     }
 
     @Test
@@ -364,6 +426,8 @@ class LifecycleActionServiceTest {
         assertEquals(LifecycleDomain.SERVICE, new ChangePlanAction(platformRepository).domain());
         assertEquals(LifecycleDomain.SERVICE, new ChangeMsisdnAction().domain());
         assertEquals(LifecycleDomain.SERVICE, new ChangeSimAction().domain());
+        assertEquals(LifecycleDomain.PRODUCT, new MarkExpiredAction().domain());
+        assertEquals(LifecycleDomain.PRODUCT, new PaymentReceivedAction().domain());
     }
 
     @Test
