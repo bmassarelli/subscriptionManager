@@ -80,6 +80,22 @@ test('renders only the fetched available actions as buttons', async () => {
   expect(screen.queryByRole('button', { name: 'Change Plan' })).not.toBeInTheDocument();
 });
 
+test('renders Mark Expired for AC and Payment Received for EX, with correct labels', async () => {
+  mockFetch({ detail: { ...BASE_DETAIL, status: 'AC', availableProductActions: ['MARK_EXPIRED'], availableServiceActions: [] } });
+  const { unmount } = render(<SubscriptionDetail subscriptionId={1} onBack={jest.fn()} />);
+  await screen.findByText('John Doe');
+
+  expect(screen.getByRole('button', { name: 'Mark Expired' })).toBeInTheDocument();
+  unmount();
+
+  mockFetch({ detail: { ...BASE_DETAIL, status: 'EX', availableProductActions: ['PAYMENT_RECEIVED'], availableServiceActions: [] } });
+  render(<SubscriptionDetail subscriptionId={1} onBack={jest.fn()} />);
+  await screen.findByText('John Doe');
+
+  expect(screen.getByRole('button', { name: 'Payment Received' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Mark Expired' })).not.toBeInTheDocument();
+});
+
 test('submitting an action successfully refreshes the screen', async () => {
   mockFetch();
   render(<SubscriptionDetail subscriptionId={1} onBack={jest.fn()} />);

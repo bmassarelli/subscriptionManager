@@ -24,7 +24,7 @@ export function statusRailClassName(status) {
   return `status-rail status-rail--${STATUS_TOKEN[status] || 'slate'}`;
 }
 
-export const ALL_OPERATION_TYPES = ['CREATE', 'SUSPEND', 'RECONNECT', 'CANCEL', 'CHANGE_PLAN', 'CHANGE_MSISDN', 'CHANGE_SIM'];
+export const ALL_OPERATION_TYPES = ['CREATE', 'SUSPEND', 'RECONNECT', 'CANCEL', 'CHANGE_PLAN', 'CHANGE_MSISDN', 'CHANGE_SIM', 'MARK_EXPIRED', 'PAYMENT_RECEIVED'];
 
 // Fixed categorical color per operation type — assigned once, in this order,
 // so a type's color never changes just because a filter/sort reshuffles its
@@ -41,6 +41,8 @@ export const OPERATION_TYPE_LABELS = {
   CHANGE_PLAN: 'Change Plan',
   CHANGE_MSISDN: 'Change MSISDN',
   CHANGE_SIM: 'Change SIM',
+  MARK_EXPIRED: 'Mark Expired',
+  PAYMENT_RECEIVED: 'Payment Received',
 };
 
 export const ALL_OPERATION_STATUSES = ['COMPLETED', 'FAILED'];

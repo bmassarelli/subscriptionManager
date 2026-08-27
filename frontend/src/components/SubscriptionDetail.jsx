@@ -15,6 +15,8 @@ const ACTION_LABELS = {
   CHANGE_PLAN: 'Change Plan',
   CHANGE_MSISDN: 'Change MSISDN',
   CHANGE_SIM: 'Change SIM',
+  MARK_EXPIRED: 'Mark Expired',
+  PAYMENT_RECEIVED: 'Payment Received',
 };
 
 const RESOURCE_TYPES = ['IP', 'VLAN', 'CPE', 'PORT', 'EQUIPMENT', 'NODE'];
