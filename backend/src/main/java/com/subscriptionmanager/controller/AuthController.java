@@ -35,6 +35,14 @@ public class AuthController {
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);
+        // Session-fixation protection: rotate the id of any pre-existing session (e.g. one
+        // established before the user authenticated) before writing the authenticated context
+        // into it. changeSessionId() throws IllegalStateException if no session exists yet, and
+        // on a fresh login there normally isn't one — in that case there's nothing to fixate,
+        // since saveContext() below will create a brand-new session with its own random id.
+        if (httpRequest.getSession(false) != null) {
+            httpRequest.changeSessionId();
+        }
         securityContextRepository.saveContext(context, httpRequest, httpResponse);
 
         return Map.of("username", authentication.getName());

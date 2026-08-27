@@ -100,17 +100,10 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.error").exists());
     }
 
-    // NOTE: this is 403, not 401, because SecurityConfig (as specified) never configures an
-    // AuthenticationEntryPoint. With no formLogin()/httpBasic() configured, Spring Security's
-    // HttpSecurity falls back to Http403ForbiddenEntryPoint for anonymous access-denied cases,
-    // so `.anyRequest().authenticated()` failing for an anonymous caller yields 403 Forbidden,
-    // not 401 Unauthorized. The login gate still fully blocks the request either way — this is
-    // flagged as a concern in the task report since task-2-brief.md's own prose describes this
-    // case (and the logout-then-me case below) as expecting 401.
     @Test
-    void meWithoutPriorLoginReturnsForbidden() throws Exception {
+    void meWithoutPriorLoginReturnsUnauthorized() throws Exception {
         mockMvc.perform(get("/api/auth/me"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -130,9 +123,8 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.username").value("gooduser"));
     }
 
-    // See the note on meWithoutPriorLoginReturnsForbidden() above re: 403 vs 401.
     @Test
-    void logoutInvalidatesSessionSoSubsequentMeIsForbidden() throws Exception {
+    void logoutInvalidatesSessionSoSubsequentMeIsUnauthorized() throws Exception {
         stubKnownUser("gooduser", "password123");
 
         MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
@@ -147,6 +139,6 @@ class AuthControllerTest {
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/auth/me").session(session))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 }
