@@ -15,14 +15,20 @@ subscriptionManager/
 │   ├── 003-hardening.sql              # PRE_SUSPEND_STATUS + CLIENT email/msisdn uniqueness
 │   ├── 004-resources.sql              # RESOURCES table + SEQ_RESOURCE_ID + trigger
 │   ├── 005-product-offering.sql       # PRODUCT_OFFERING table + SUBSCRIPTIONS FK, drops PO
-│   └── 006-service.sql                # SERVICE table (PLATFORM/MSISDN/SIM_ICCID moved off
-│                                       # SUBSCRIPTIONS); RESOURCES FK swapped to SERVICE_ID
+│   ├── 006-service.sql                # SERVICE table (PLATFORM/MSISDN/SIM_ICCID moved off
+│   │                                   # SUBSCRIPTIONS); RESOURCES FK swapped to SERVICE_ID
+│   └── 007-app-user.sql               # APP_USER table (login gate) + seeded local credential —
+│                                       # see "Authentication" below
 ├── backend/                            # Spring Boot 3, Java 21, Maven
 │   └── src/main/
 │       ├── java/com/subscriptionmanager/
 │       │   ├── SubscriptionManagerApplication.java
-│       │   ├── config/CorsConfig.java
+│       │   ├── config/SecurityConfig.java              # session-cookie login gate: filter chain,
+│       │   │                                            # CORS w/ credentials, 401 entry point — see
+│       │   │                                            # "Authentication" below
 │       │   ├── controller/
+│       │   │   ├── AuthController.java                 # POST /api/auth/login, /api/auth/logout,
+│       │   │   │                                         # GET /api/auth/me
 │       │   │   ├── CatalogController.java             # GET /api/platforms, /api/payment-modes,
 │       │   │   │                                         # /api/product-offerings
 │       │   │   ├── ClientController.java              # GET/POST /api/clients, GET/PUT/DELETE
@@ -33,7 +39,8 @@ subscriptionManager/
 │       │   │   │                                         # GET /api/operations (all), subscription detail
 │       │   │   ├── ResourceController.java             # GET/POST/DELETE /api/subscriptions/{id}/resources
 │       │   │   ├── DashboardController.java            # GET /api/dashboard/summary
-│       │   │   └── GlobalExceptionHandler.java         # validation + invalid-reference/not-found -> 400/404
+│       │   │   └── GlobalExceptionHandler.java         # validation + invalid-reference/not-found -> 400/404,
+│       │   │                                            # AuthenticationException -> 401
 │       │   ├── dto/
 │       │   │   ├── ClientRequestDTO.java / ClientResponseDTO.java
 │       │   │   ├── SubscriptionDTO.java / SubscriptionRequestDTO.java / SubscriptionDetailDTO.java /
@@ -41,21 +48,26 @@ subscriptionManager/
 │       │   │   ├── PlatformDTO.java / PaymentModeDTO.java / ProductOfferingDTO.java
 │       │   │   ├── LifecycleActionRequestDTO.java / LifecycleActionResultDTO.java / OperationDTO.java
 │       │   │   ├── ResourceDTO.java / ResourceRequestDTO.java
-│       │   │   └── DashboardSummaryDTO.java
+│       │   │   ├── DashboardSummaryDTO.java
+│       │   │   └── LoginRequestDTO.java
 │       │   ├── entity/
 │       │   │   ├── Client.java / Subscription.java (full column mapping incl. PRE_SUSPEND_STATUS)
 │       │   │   ├── Platform.java / PaymentMode.java / ProductOffering.java
 │       │   │   ├── Service.java (PLATFORM/MSISDN/SIM_ICCID, 1:1 with Subscription)
 │       │   │   ├── Operation.java (lifecycle audit trail)
-│       │   │   └── Resource.java (IP/VLAN/CPE/PORT/EQUIPMENT/NODE; FKs to Service)
+│       │   │   ├── Resource.java (IP/VLAN/CPE/PORT/EQUIPMENT/NODE; FKs to Service)
+│       │   │   └── AppUser.java (login credentials — USERNAME/PASSWORD_HASH)
 │       │   ├── repository/
 │       │   │   ├── ClientRepository.java / SubscriptionRepository.java
 │       │   │   ├── PlatformRepository.java / PaymentModeRepository.java / ProductOfferingRepository.java
 │       │   │   ├── OperationRepository.java / ResourceRepository.java
+│       │   │   ├── AppUserRepository.java
 │       │   ├── service/
 │       │   │   ├── ClientService.java / SubscriptionService.java
 │       │   │   ├── DashboardService.java              # aggregates counts/status breakdown/recent ops
 │       │   │   ├── OperationMapper.java / OperationRecorder.java
+│       │   │   ├── AppUserDetailsService.java          # Spring Security UserDetailsService, backed
+│       │   │   │                                        # by AppUserRepository
 │       │   │   ├── InvalidClientReferenceException.java, InvalidPlatformException.java,
 │       │   │   │   InvalidPaymentModeException.java, InvalidProductOfferingException.java,
 │       │   │   │   DuplicateClientFieldException.java, ClientNotFoundException.java,
@@ -143,6 +155,30 @@ npm run build    # production build
 The frontend is connected to the real backend — `App.jsx` fetches
 `http://localhost:8080/api/subscriptions` on load. There is no mock data in the
 codebase anymore.
+
+## Authentication
+
+Every `/api/**` endpoint requires an authenticated session — except `POST
+/api/auth/login`, which is the only open endpoint. Session state is a plain
+HTTP session cookie (`JSESSIONID`); there is no token/JWT involved. See
+`config/SecurityConfig.java` for the filter chain and `controller/AuthController.java`
+for the endpoints:
+
+- `POST /api/auth/login` — body `{"username": "...", "password": "..."}`,
+  returns `{"username": "..."}` on success and sets the session cookie
+- `POST /api/auth/logout` — invalidates the session
+- `GET /api/auth/me` — returns `{"username": "..."}` for the current session
+
+A request with no valid session gets `401` with body `{"error": "..."}` from
+every protected endpoint (via `SecurityConfig`'s entry point for a missing
+session, or `GlobalExceptionHandler`'s `AuthenticationException` handler for a
+failed login) — never a raw `403` or an empty body.
+
+Seeded local credential (from `database/007-app-user.sql`, applied to the
+training DB): `username: ops`, `password: Ops#Training2026`. Fine to note here
+in plaintext for the local training environment — this project already commits
+its real Oracle DB password in `database/001-baseline.sql`, so this is
+consistent with that established convention, not a new exposure.
 
 ## Database
 
@@ -281,7 +317,6 @@ endpoints — see `subscription-lifecycle` under Architecture Notes below.
 
 ## What's Not Built Yet
 
-- Authentication / authorization
 - Charging/billing, promotions, and payment-received reactivation
 - Real integration with the ROS API or the API Gateway (this app is local-only —
   see `README.md`'s API section, which documents that *external* system's contract,
