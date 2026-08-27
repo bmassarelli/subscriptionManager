@@ -152,7 +152,7 @@ server.port=8080
 cd frontend
 npm install
 npm start        # http://localhost:3000
-npm test         # run tests (104 tests, all passing)
+npm test         # run tests (105 tests, all passing)
 npm run build    # production build
 ```
 
@@ -273,18 +273,25 @@ endpoints — see `subscription-lifecycle` under Architecture Notes below.
 #### Lifecycle actions (`subscription-lifecycle`, `subscription-detail`)
 - `SubscriptionLifecycleController` exposes two domain-specific action endpoints
   (`POST /api/subscriptions/{id}/product-actions` for `SUSPEND`/`RECONNECT`/
-  `CANCEL`, `POST /api/subscriptions/{id}/service-actions` for `CHANGE_PLAN`/
-  `CHANGE_MSISDN`/`CHANGE_SIM`; each takes `type` + action-specific payload)
+  `CANCEL`/`MARK_EXPIRED`/`PAYMENT_RECEIVED`, `POST /api/subscriptions/{id}/service-actions`
+  for `CHANGE_PLAN`/`CHANGE_MSISDN`/`CHANGE_SIM`; each takes `type` + action-specific payload)
   plus `GET /api/subscriptions/{id}` (detail),
   `GET /api/subscriptions/{id}/operations`, and `GET /api/operations` (all,
   cross-subscription, most recent first)
-- Every action (`SUSPEND`, `RECONNECT`, `CANCEL`, `CHANGE_PLAN`, `CHANGE_MSISDN`,
-  `CHANGE_SIM`) is a `LifecycleAction` implementation registered in
-  `LifecycleActionRegistry`, run through one pipeline in `LifecycleActionService`:
-  validate current status against the transition table, validate the action's
-  data, record an `Operation` (via `OperationRecorder`), apply the change
+- Every action (`SUSPEND`, `RECONNECT`, `CANCEL`, `MARK_EXPIRED`, `PAYMENT_RECEIVED`,
+  `CHANGE_PLAN`, `CHANGE_MSISDN`, `CHANGE_SIM`) is a `LifecycleAction` implementation
+  registered in `LifecycleActionRegistry`, run through one pipeline in
+  `LifecycleActionService`: validate current status against the transition table,
+  validate the action's data, record an `Operation` (via `OperationRecorder`), apply
+  the change
 - `Suspend` stashes the pre-suspend status in `PRE_SUSPEND_STATUS` so `Reconnect`
   can restore it
+- `MarkExpiredAction` (`AC`/`TR` → `EX`) and `PaymentReceivedAction` (`EX` → `AC`,
+  always to `AC`, never back to `TR`) are the app-local stand-in for the unbuilt
+  charging pipeline and the `README.md`-documented Payment Received flow — see
+  `docs/superpowers/specs/2026-08-27-payment-received-flow-design.md`. `MARK_EXPIRED`
+  is explicitly a manual substitute for a real charging failure, since no charging
+  engine exists to produce `EX` on its own.
 - `Operation` → `OperationDTO` mapping lives in the shared `OperationMapper`,
   reused by both the per-subscription operations list and the dashboard summary
 
@@ -325,7 +332,9 @@ endpoints — see `subscription-lifecycle` under Architecture Notes below.
 
 ## What's Not Built Yet
 
-- Charging/billing, promotions, and payment-received reactivation
+- The periodic ROS Loader charging engine and promotions — `MARK_EXPIRED`/
+  `PAYMENT_RECEIVED` (see "Lifecycle actions" above) let the app demonstrate the
+  `EX ⇄ AC` cycle without a real charging pipeline behind it
 - Real integration with the ROS API or the API Gateway (this app is local-only —
   see `README.md`'s API section, which documents that *external* system's contract,
   not something implemented here)
