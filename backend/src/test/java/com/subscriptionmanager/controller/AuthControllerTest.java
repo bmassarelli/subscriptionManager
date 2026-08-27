@@ -103,7 +103,8 @@ class AuthControllerTest {
     @Test
     void meWithoutPriorLoginReturnsUnauthorized() throws Exception {
         mockMvc.perform(get("/api/auth/me"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").exists());
     }
 
     @Test
@@ -139,6 +140,7 @@ class AuthControllerTest {
                 .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/auth/me").session(session))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").exists());
     }
 }
