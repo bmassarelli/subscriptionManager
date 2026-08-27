@@ -1,7 +1,10 @@
 package com.subscriptionmanager.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.subscriptionmanager.config.SecurityConfig;
 import com.subscriptionmanager.dto.SubscriptionDTO;
+import com.subscriptionmanager.repository.AppUserRepository;
+import com.subscriptionmanager.service.AppUserDetailsService;
 import com.subscriptionmanager.service.InvalidClientReferenceException;
 import com.subscriptionmanager.service.InvalidPaymentModeException;
 import com.subscriptionmanager.service.InvalidPlatformException;
@@ -12,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -30,6 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(SubscriptionController.class)
+@Import({SecurityConfig.class, AppUserDetailsService.class})
 @WithMockUser
 class SubscriptionControllerTest {
 
@@ -41,6 +46,9 @@ class SubscriptionControllerTest {
 
     @MockBean
     private SubscriptionService subscriptionService;
+
+    @MockBean
+    private AppUserRepository appUserRepository;
 
     @Test
     void listsAllSubscriptions() throws Exception {

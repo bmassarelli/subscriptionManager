@@ -1,15 +1,19 @@
 package com.subscriptionmanager.controller;
 
+import com.subscriptionmanager.config.SecurityConfig;
 import com.subscriptionmanager.entity.PaymentMode;
 import com.subscriptionmanager.entity.Platform;
 import com.subscriptionmanager.entity.ProductOffering;
+import com.subscriptionmanager.repository.AppUserRepository;
 import com.subscriptionmanager.repository.PaymentModeRepository;
 import com.subscriptionmanager.repository.PlatformRepository;
 import com.subscriptionmanager.repository.ProductOfferingRepository;
+import com.subscriptionmanager.service.AppUserDetailsService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -21,6 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(CatalogController.class)
+@Import({SecurityConfig.class, AppUserDetailsService.class})
 @WithMockUser
 class CatalogControllerTest {
 
@@ -35,6 +40,9 @@ class CatalogControllerTest {
 
     @MockBean
     private ProductOfferingRepository productOfferingRepository;
+
+    @MockBean
+    private AppUserRepository appUserRepository;
 
     @Test
     void listsPlatforms() throws Exception {

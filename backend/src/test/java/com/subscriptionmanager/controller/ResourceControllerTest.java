@@ -1,6 +1,9 @@
 package com.subscriptionmanager.controller;
 
+import com.subscriptionmanager.config.SecurityConfig;
 import com.subscriptionmanager.dto.ResourceDTO;
+import com.subscriptionmanager.repository.AppUserRepository;
+import com.subscriptionmanager.service.AppUserDetailsService;
 import com.subscriptionmanager.service.lifecycle.SubscriptionNotFoundException;
 import com.subscriptionmanager.service.resource.InvalidResourceTypeException;
 import com.subscriptionmanager.service.resource.ResourceNotFoundException;
@@ -9,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -25,6 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ResourceController.class)
+@Import({SecurityConfig.class, AppUserDetailsService.class})
 @WithMockUser
 class ResourceControllerTest {
 
@@ -33,6 +38,9 @@ class ResourceControllerTest {
 
     @MockBean
     private ResourceService service;
+
+    @MockBean
+    private AppUserRepository appUserRepository;
 
     @Test
     void listsResourcesForASubscription() throws Exception {
