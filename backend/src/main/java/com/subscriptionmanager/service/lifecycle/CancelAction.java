@@ -24,7 +24,7 @@ public class CancelAction implements LifecycleAction {
     public LifecycleDomain domain() { return LifecycleDomain.PRODUCT; }
 
     @Override
-    public List<String> eligibleStatuses() { return List.of("AC", "TR", "SU"); }
+    public List<String> eligibleStatuses() { return List.of("AC", "TR", "SU", "EX"); }
 
     @Override
     public void validate(Subscription subscription, Map<String, Object> data) {

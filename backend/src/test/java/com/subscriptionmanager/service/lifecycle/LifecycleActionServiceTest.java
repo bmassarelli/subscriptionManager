@@ -227,6 +227,18 @@ class LifecycleActionServiceTest {
     }
 
     @Test
+    void cancelsExpiredSubscription() {
+        Subscription subscription = buildSubscription("EX");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        service.executeProductAction(1L, "CANCEL", Map.of("immediate", true));
+
+        assertEquals("CA", subscription.getStatus());
+        assertEquals(LocalDate.now(), subscription.getCancelDate());
+        assertEquals(LocalDate.now(), subscription.getDeactivateDate());
+    }
+
+    @Test
     void cancelReleasesResourcesAndNotesItInTheDescription() {
         Subscription subscription = buildSubscription("AC");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
