@@ -72,10 +72,11 @@ subscriptionManager/
 │       │   │   │   InvalidPaymentModeException.java, InvalidProductOfferingException.java,
 │       │   │   │   DuplicateClientFieldException.java, ClientNotFoundException.java,
 │       │   │   │   ClientHasSubscriptionsException.java
-│       │   │   ├── lifecycle/                         # SUSPEND/RECONNECT/CANCEL/CHANGE_PLAN/
-│       │   │   │   ├── LifecycleAction.java, LifecycleActionRegistry.java,   # CHANGE_MSISDN/CHANGE_SIM
-│       │   │   │   ├── LifecycleActionService.java     # actions, one per class implementing LifecycleAction
-│       │   │   │   ├── SuspendAction.java, ReconnectAction.java, CancelAction.java,
+│       │   │   ├── lifecycle/                         # SUSPEND/RECONNECT/CANCEL/MARK_EXPIRED/
+│       │   │   │   ├── LifecycleAction.java, LifecycleActionRegistry.java,   # PAYMENT_RECEIVED/CHANGE_PLAN/
+│       │   │   │   ├── LifecycleActionService.java     # CHANGE_MSISDN/CHANGE_SIM — actions, one per
+│       │   │   │   ├── SuspendAction.java, ReconnectAction.java, CancelAction.java,  # class implementing LifecycleAction
+│       │   │   │   ├── MarkExpiredAction.java, PaymentReceivedAction.java,
 │       │   │   │   ├── ChangePlanAction.java, ChangeMsisdnAction.java, ChangeSimAction.java
 │       │   │   │   └── SubscriptionNotFoundException.java, InvalidLifecycleTransitionException.java,
 │       │   │   │       LifecycleActionValidationException.java, UnknownLifecycleActionException.java,
@@ -217,7 +218,7 @@ Full column reference is in `README.md`.
 | AC   | Active     | Subscription is active and being charged                        |
 | TR   | Trial      | Within trial period — no charges yet                            |
 | SU   | Suspended  | Temporarily suspended — can be reconnected                      |
-| EX   | Expired    | Payment failed (insufficient balance or any other reason)       |
+| EX   | Expired    | Payment failed (insufficient balance or any other reason); also reachable today via the manual `Mark Expired` action, standing in for the unbuilt charging pipeline |
 | CA   | Cancelled  | Explicitly cancelled by the client — `CANCEL_DATE` is set       |
 | ER   | Error      | Processing error during charging or activation                  |
 

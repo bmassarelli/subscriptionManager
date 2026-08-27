@@ -21,8 +21,9 @@ public class Operation {
     // ProductOrder/ServiceOrder entity exists because every operation here is synchronous
     // (status is only ever COMPLETED/FAILED, never an intermediate state like inProgress that
     // would need its own record apart from the resulting Subscription/Service state).
-    // CREATE/SUSPEND/RECONNECT/CANCEL are Product Order history; CHANGE_PLAN/CHANGE_MSISDN/
-    // CHANGE_SIM are Service Order history (mirrors LifecycleAction.domain(), though CREATE isn't
+    // CREATE/SUSPEND/RECONNECT/CANCEL/MARK_EXPIRED/PAYMENT_RECEIVED are Product Order history;
+    // CHANGE_PLAN/CHANGE_MSISDN/CHANGE_SIM are Service Order history (mirrors
+    // LifecycleAction.domain(), though CREATE isn't
     // dispatched through a LifecycleAction and so has no domain() of its own — it's Product by
     // nature, it creates the Product). See
     // openspec/changes/archive/2026-08-26-clarify-product-order-vs-product.
