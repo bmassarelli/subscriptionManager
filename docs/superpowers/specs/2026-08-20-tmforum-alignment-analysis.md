@@ -400,8 +400,14 @@ fase 2, no fase 1 (ver §12–13).
    `MSISDN`/`SIM_ICCID`/`PLATFORM` conceptualmente ahí. **Resuelto** en
    `openspec/changes/archive/2026-08-26-introduce-service-entity` — tabla `SERVICE` real, 1:1
    con `SUBSCRIPTIONS`, `RESOURCES` re-apuntado a `SERVICE_ID`, sin cambio de contrato externo.
-2. Separar `Product Order` de `Product` de verdad (hoy están fusionados en `SUBSCRIPTIONS`). No
-   resuelto — sigue abierto (Fase 3).
+2. Separar `Product Order` de `Product` de verdad (hoy están fusionados en `SUBSCRIPTIONS`).
+   **Evaluado y cerrado** en `openspec/changes/archive/2026-08-26-clarify-product-order-vs-product`
+   — no se necesita una entidad `ProductOrder` separada: `OPERATIONS` ya cumple ese rol para los
+   tipos de dominio PRODUCT (`CREATE`, `SUSPEND`, `RECONNECT`, `CANCEL`), y de Service Order
+   (TMF641) para los de dominio SERVICE (`CHANGE_PLAN`, `CHANGE_MSISDN`, `CHANGE_SIM`), porque
+   toda operación acá es síncrona (`status` solo es `COMPLETED`/`FAILED`) — no hay un estado
+   intermedio tipo `inProgress` que justifique un registro separado del resultado. Re-evaluar si
+   alguna vez se introduce aprovisionamiento asíncrono real.
 3. Mover `CHANGE_PLAN`/`CHANGE_MSISDN`/`CHANGE_SIM` a un registro/endpoint de "Service actions"
    distinto del de "Product actions" (`CREATE`, `CANCEL`, y el futuro `CHANGE_OFFERING`) — ver §7.
    **Resuelto** en `openspec/changes/archive/2026-08-26-split-lifecycle-action-endpoints` —
