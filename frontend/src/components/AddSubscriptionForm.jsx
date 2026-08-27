@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../api';
 
 const INITIAL_VALUES = { clientId: '', platform: '', contract: '', amount: '', paymentModeId: '', po: '' };
 
@@ -22,22 +23,22 @@ export default function AddSubscriptionForm({ onCreated }) {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetch('http://localhost:8080/api/clients')
+    apiFetch('/api/clients')
       .then(res => (res.ok ? res.json() : []))
       .then(setClients)
       .catch(() => setClients([]));
 
-    fetch('http://localhost:8080/api/platforms')
+    apiFetch('/api/platforms')
       .then(res => (res.ok ? res.json() : []))
       .then(setPlatforms)
       .catch(() => setPlatforms([]));
 
-    fetch('http://localhost:8080/api/payment-modes')
+    apiFetch('/api/payment-modes')
       .then(res => (res.ok ? res.json() : []))
       .then(setPaymentModes)
       .catch(() => setPaymentModes([]));
 
-    fetch('http://localhost:8080/api/product-offerings')
+    apiFetch('/api/product-offerings')
       .then(res => (res.ok ? res.json() : []))
       .then(setProductOfferings)
       .catch(() => setProductOfferings([]));
@@ -72,7 +73,7 @@ export default function AddSubscriptionForm({ onCreated }) {
     setErrors({});
     setSubmitting(true);
     try {
-      const res = await fetch('http://localhost:8080/api/subscriptions', {
+      const res = await apiFetch('/api/subscriptions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

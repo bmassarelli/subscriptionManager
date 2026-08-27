@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { STATUS_LABELS, STATUS_TOKEN, statusRailClassName } from '../constants';
+import { apiFetch } from '../api';
 import SubscriptionHistoryTimeline from './SubscriptionHistoryTimeline';
 import StatusBadge from './ui/StatusBadge';
 import LoadingState from './ui/LoadingState';
@@ -43,15 +44,15 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
   const loadDetail = useCallback(() => {
     setLoading(true);
     return Promise.all([
-      fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}`).then(res => {
+      apiFetch(`/api/subscriptions/${subscriptionId}`).then(res => {
         if (!res.ok) throw new Error('Failed to fetch subscription detail');
         return res.json();
       }),
-      fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}/operations`).then(res => {
+      apiFetch(`/api/subscriptions/${subscriptionId}/operations`).then(res => {
         if (!res.ok) throw new Error('Failed to fetch subscription operations');
         return res.json();
       }),
-      fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}/resources`).then(res => {
+      apiFetch(`/api/subscriptions/${subscriptionId}/resources`).then(res => {
         if (!res.ok) throw new Error('Failed to fetch subscription resources');
         return res.json();
       }),
@@ -71,7 +72,7 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
   }, [loadDetail]);
 
   useEffect(() => {
-    fetch('http://localhost:8080/api/platforms')
+    apiFetch('/api/platforms')
       .then(res => (res.ok ? res.json() : []))
       .then(setPlatforms)
       .catch(() => setPlatforms([]));
@@ -96,7 +97,7 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
     setResourceSubmitting(true);
     setResourceError(null);
     try {
-      const res = await fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}/resources`, {
+      const res = await apiFetch(`/api/subscriptions/${subscriptionId}/resources`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resourceType: newResourceType, value: newResourceValue }),
@@ -135,7 +136,7 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
     setEditSubmitting(true);
     setEditError(null);
     try {
-      const res = await fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}`, {
+      const res = await apiFetch(`/api/subscriptions/${subscriptionId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contract: editValues.contract, amount: Number(editValues.amount) }),
@@ -158,7 +159,7 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
   }
 
   async function removeResource(resourceId) {
-    await fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}/resources/${resourceId}`, {
+    await apiFetch(`/api/subscriptions/${subscriptionId}/resources/${resourceId}`, {
       method: 'DELETE',
     });
     await loadDetail();
@@ -169,7 +170,7 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
     setSubmitting(true);
     setActionError(null);
     try {
-      const res = await fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}/${activeActionDomain === 'product' ? 'product-actions' : 'service-actions'}`, {
+      const res = await apiFetch(`/api/subscriptions/${subscriptionId}/${activeActionDomain === 'product' ? 'product-actions' : 'service-actions'}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: activeAction, ...actionValues }),

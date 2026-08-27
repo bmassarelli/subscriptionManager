@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import AddClientForm from './AddClientForm';
 import { applyClientSearch } from '../utils/filterSort';
+import { apiFetch } from '../api';
 import LoadingState from './ui/LoadingState';
 import ErrorState from './ui/ErrorState';
 import EmptyState from './ui/EmptyState';
@@ -17,7 +18,7 @@ export default function ClientsModule() {
 
   const loadClients = useCallback(() => {
     setLoading(true);
-    return fetch('http://localhost:8080/api/clients')
+    return apiFetch('/api/clients')
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch clients');
         return res.json();
@@ -49,7 +50,7 @@ export default function ClientsModule() {
   }
 
   async function handleDelete(clientId) {
-    const res = await fetch(`http://localhost:8080/api/clients/${clientId}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/clients/${clientId}`, { method: 'DELETE' });
     if (!res.ok) {
       const errorBody = await res.json();
       const message = Object.values(errorBody)[0] || 'Failed to delete client';

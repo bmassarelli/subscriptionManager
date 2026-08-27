@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ALL_STATUSES, STATUS_LABELS, STATUS_TOKEN, OPERATION_TYPE_CHART_TOKEN } from '../constants';
+import { apiFetch } from '../api';
 import LoadingState from './ui/LoadingState';
 import ErrorState from './ui/ErrorState';
 import EmptyState from './ui/EmptyState';
@@ -14,7 +15,7 @@ export default function DashboardModule() {
 
   useEffect(() => {
     setLoading(true);
-    fetch('http://localhost:8080/api/dashboard/summary')
+    apiFetch('/api/dashboard/summary')
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch dashboard summary');
         return res.json();

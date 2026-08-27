@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ALL_STATUSES } from './constants';
 import { applyFilters, applySort, paginate } from './utils/filterSort';
+import { apiFetch } from './api';
 import AppShell from './components/shell/AppShell';
 import FilterSidebar from './components/FilterSidebar';
 import SubscriptionTable from './components/SubscriptionTable';
@@ -9,6 +10,7 @@ import OperationsModule from './components/OperationsModule';
 import DashboardModule from './components/DashboardModule';
 import AddSubscriptionForm from './components/AddSubscriptionForm';
 import SubscriptionDetail from './components/SubscriptionDetail';
+import LoginScreen from './components/LoginScreen';
 import LoadingState from './components/ui/LoadingState';
 import ErrorState from './components/ui/ErrorState';
 
@@ -23,6 +25,8 @@ const INITIAL_FILTERS = {
 const INITIAL_SORT = { column: 'entryDate', direction: 'desc' };
 
 export default function App() {
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
   const [activeModule, setActiveModule] = useState('dashboard');
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +40,7 @@ export default function App() {
 
   function loadSubscriptions() {
     setLoading(true);
-    return fetch('http://localhost:8080/api/subscriptions')
+    return apiFetch('/api/subscriptions')
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch subscriptions');
         return res.json();
@@ -50,8 +54,26 @@ export default function App() {
   }
 
   useEffect(() => {
-    loadSubscriptions();
+    apiFetch('/api/auth/me')
+      .then(res => {
+        setAuthenticated(res.ok);
+      })
+      .finally(() => setAuthChecked(true));
   }, []);
+
+  useEffect(() => {
+    function handleUnauthorized() {
+      setAuthenticated(false);
+    }
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+  }, []);
+
+  useEffect(() => {
+    if (authenticated) {
+      loadSubscriptions();
+    }
+  }, [authenticated]);
 
   const platforms = useMemo(
     () => [...new Set(data.map(d => d.platform))].sort(),
@@ -123,8 +145,16 @@ export default function App() {
     );
   }
 
+  if (!authChecked) {
+    return <LoadingState />;
+  }
+
+  if (!authenticated) {
+    return <LoginScreen onLoggedIn={() => setAuthenticated(true)} />;
+  }
+
   return (
-    <AppShell activeModule={activeModule} onSelectModule={setActiveModule}>
+    <AppShell activeModule={activeModule} onSelectModule={setActiveModule} onLoggedOut={() => setAuthenticated(false)}>
       {activeModule === 'subscriptions' && (
         selectedSubscriptionId ? (
           <SubscriptionDetail

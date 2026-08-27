@@ -4,6 +4,7 @@ import {
   ALL_OPERATION_STATUSES, OPERATION_STATUS_LABELS, OPERATION_STATUS_TOKEN,
 } from '../constants';
 import { applyOperationFilters } from '../utils/filterSort';
+import { apiFetch } from '../api';
 import FilterPanel from './ui/FilterPanel';
 import LoadingState from './ui/LoadingState';
 import ErrorState from './ui/ErrorState';
@@ -27,7 +28,7 @@ export default function OperationsModule({ onViewSubscription }) {
 
   const loadOperations = useCallback(() => {
     setLoading(true);
-    return fetch('http://localhost:8080/api/operations')
+    return apiFetch('/api/operations')
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch operations');
         return res.json();

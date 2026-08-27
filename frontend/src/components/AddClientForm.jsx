@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { apiFetch } from '../api';
 
 const INITIAL_VALUES = { name: '', lastName: '', email: '', msisdn: '' };
 
@@ -48,9 +49,9 @@ export default function AddClientForm({ onCreated, client, onSaved }) {
     setSubmitting(true);
     try {
       const url = isEditMode
-        ? `http://localhost:8080/api/clients/${client.clientId}`
-        : 'http://localhost:8080/api/clients';
-      const res = await fetch(url, {
+        ? `/api/clients/${client.clientId}`
+        : '/api/clients';
+      const res = await apiFetch(url, {
         method: isEditMode ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values),

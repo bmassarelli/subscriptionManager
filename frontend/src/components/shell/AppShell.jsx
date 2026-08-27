@@ -2,10 +2,10 @@ import './shell.css';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 
-export default function AppShell({ activeModule, onSelectModule, children }) {
+export default function AppShell({ activeModule, onSelectModule, onLoggedOut, children }) {
   return (
     <div className="app-shell">
-      <TopBar />
+      <TopBar onLoggedOut={onLoggedOut} />
       <div className="app-shell__body">
         <Sidebar activeModule={activeModule} onSelect={onSelectModule} />
         <div className="app-shell__main">{children}</div>
