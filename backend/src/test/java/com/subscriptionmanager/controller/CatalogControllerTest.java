@@ -1,13 +1,20 @@
 package com.subscriptionmanager.controller;
 
+import com.subscriptionmanager.config.SecurityConfig;
 import com.subscriptionmanager.entity.PaymentMode;
 import com.subscriptionmanager.entity.Platform;
+import com.subscriptionmanager.entity.ProductOffering;
+import com.subscriptionmanager.repository.AppUserRepository;
 import com.subscriptionmanager.repository.PaymentModeRepository;
 import com.subscriptionmanager.repository.PlatformRepository;
+import com.subscriptionmanager.repository.ProductOfferingRepository;
+import com.subscriptionmanager.service.AppUserDetailsService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
@@ -18,6 +25,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(CatalogController.class)
+@Import({SecurityConfig.class, AppUserDetailsService.class})
+@WithMockUser
 class CatalogControllerTest {
 
     @Autowired
@@ -28,6 +37,12 @@ class CatalogControllerTest {
 
     @MockBean
     private PaymentModeRepository paymentModeRepository;
+
+    @MockBean
+    private ProductOfferingRepository productOfferingRepository;
+
+    @MockBean
+    private AppUserRepository appUserRepository;
 
     @Test
     void listsPlatforms() throws Exception {
@@ -51,5 +66,16 @@ class CatalogControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].name").value("OCC"));
+    }
+
+    @Test
+    void listsProductOfferings() throws Exception {
+        when(productOfferingRepository.findAll()).thenReturn(List.of(
+                new ProductOffering(1L, "claroVideo")));
+
+        mockMvc.perform(get("/api/product-offerings"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].name").value("claroVideo"));
     }
 }

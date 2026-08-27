@@ -20,6 +20,17 @@ Charging is determined by the `PAYMENT_MODE` table:
 
 ---
 
+## Product Offerings
+
+`PRODUCT_OFFERING` is the local catalog backing `SUBSCRIPTIONS.PRODUCT_OFFERING_ID`. It starts
+with a single confirmed real value and grows as more offering names are learned:
+
+| ID | Name       |
+|----|------------|
+| 1  | claroVideo |
+
+---
+
 ## Database Tables
 
 ### `CLIENTS`
@@ -33,10 +44,8 @@ Stores customer information: email, first name, last name, and MSISDN.
 | CLIENT_ID          | NUMBER          | Reference to the client                                  |
 | ENTRY_DATE         | DATE            | Record creation date                                     |
 | MODIFY_DATE        | DATE            | Last update date — updated on every change               |
-| PLATFORM           | VARCHAR2(100)   | Charging platform (e.g., `MOBILE_BSCS9`)                 |
 | CONTRACT           | VARCHAR2(400)   | Contract identifier                                      |
 | STATUS             | VARCHAR2(2)     | Current subscription status (see status table below)     |
-| PO                 | VARCHAR2(400)   | Product Offering — determines charging behavior          |
 | ACTIVATE_DATE      | DATE            | Effective start date                                     |
 | DEACTIVATE_DATE    | DATE            | Expiration/deactivation date                             |
 | CANCEL_DATE        | DATE            | Set when the user requests cancellation                  |
@@ -50,8 +59,23 @@ Stores customer information: email, first name, last name, and MSISDN.
 | ERROR_MSG          | VARCHAR2(4000)  | Error message if charging fails                          |
 | PROMOTION          | NUMBER          | Promotion ID from the promotions application             |
 | PAYMENT_MODE_ID    | NUMBER          | FK to `PAYMENT_MODE` — set on creation, optional          |
-| MSISDN             | VARCHAR2(400)   | This subscription's own phone number (set via the `CHANGE_MSISDN` lifecycle action; distinct from the client's contact MSISDN on `CLIENT`) |
-| SIM_ICCID          | VARCHAR2(400)   | This subscription's SIM/eSIM identifier (set via the `CHANGE_SIM` lifecycle action) |
+| PRODUCT_OFFERING_ID | NUMBER         | FK to `PRODUCT_OFFERING` — set on creation, optional      |
+
+> `PLATFORM`, `MSISDN`, and `SIM_ICCID` used to live on `SUBSCRIPTIONS` directly; they were
+> extracted into their own `SERVICE` table (see below), 1:1 with `SUBSCRIPTIONS`.
+
+### `SERVICE`
+
+One row per subscription (1:1 with `SUBSCRIPTIONS`) — the technical-realization attributes
+of a subscription: access + billing engine, MSISDN, SIM/eSIM identifier.
+
+| Column          | Type            | Description                                              |
+|-----------------|-----------------|------------------------------------------------------------|
+| ID              | NUMBER PK       | Sequence-generated service ID                            |
+| SUBSCRIPTION_ID | NUMBER FK       | Reference to the subscription (unique — one `SERVICE` row per subscription) |
+| PLATFORM        | VARCHAR2(100)   | Charging platform (e.g., `MOBILE_BSCS9`)                 |
+| MSISDN          | VARCHAR2(400)   | This subscription's own phone number (set via the `CHANGE_MSISDN` lifecycle action; distinct from the client's contact MSISDN on `CLIENT`) |
+| SIM_ICCID       | VARCHAR2(400)   | This subscription's SIM/eSIM identifier (set via the `CHANGE_SIM` lifecycle action) |
 
 ### `OPERATIONS`
 
@@ -93,11 +117,13 @@ none of it is integrated here. What Subscription Manager itself actually impleme
 today, purely locally against its own database:
 
 - `GET/POST /api/clients`, `GET/POST /api/subscriptions`, `GET /api/subscriptions/{id}`
-- `GET /api/platforms`, `GET /api/payment-modes`
-- `POST /api/subscriptions/{id}/actions` — a generic lifecycle-action endpoint
-  (`SUSPEND`, `RECONNECT`, `CANCEL`, `CHANGE_PLAN`, `CHANGE_MSISDN`, `CHANGE_SIM`)
-  that validates the transition against the status table above, applies the
-  change, and records it — see the `OPERATIONS` table above
+- `GET /api/platforms`, `GET /api/payment-modes`, `GET /api/product-offerings`
+- `POST /api/subscriptions/{id}/product-actions` — a lifecycle-action endpoint for
+  product-domain actions (`SUSPEND`, `RECONNECT`, `CANCEL`)
+- `POST /api/subscriptions/{id}/service-actions` — a lifecycle-action endpoint for
+  service-domain actions (`CHANGE_PLAN`, `CHANGE_MSISDN`, `CHANGE_SIM`)
+- Both validate the transition against the status table above, apply the
+  change, and record it — see the `OPERATIONS` table above
 - `GET /api/subscriptions/{id}/operations` — that subscription's operation history
 - A frontend detail screen (per subscription) that triggers those actions
 
@@ -222,6 +248,12 @@ Set STATUS = CA
              │
              Network deactivation confirmed
 ```
+
+> **Local implementation note:** the diagram above describes the external ROS contract, which
+> implies some other process may have set `DEACTIVATE_DATE` earlier (hence "remains as originally
+> set"). This app has no such process — the only local code path that ever sets `DEACTIVATE_DATE`
+> is an immediate `CANCEL`. On a non-immediate cancellation, `DEACTIVATE_DATE` simply stays `null`;
+> it is never "restored" to an earlier value, because none was ever set.
 
 #### Subflow: Subscription Manager - Network Deactivate
 

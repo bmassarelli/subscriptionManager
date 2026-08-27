@@ -31,7 +31,7 @@ test('fetches and renders the dashboard summary', async () => {
   expect(screen.getAllByText('3').length).toBeGreaterThan(0);
   expect(screen.getByText('John Doe')).toBeInTheDocument();
   expect(screen.getAllByText('SUSPEND').length).toBeGreaterThan(0);
-  expect(global.fetch).toHaveBeenCalledWith('http://localhost:8080/api/dashboard/summary');
+  expect(global.fetch).toHaveBeenCalledWith('http://localhost:8080/api/dashboard/summary', { credentials: 'include' });
 });
 
 test('renders the all-zero/empty state without error', async () => {

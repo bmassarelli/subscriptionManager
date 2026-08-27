@@ -19,9 +19,19 @@ public class LifecycleActionRegistry {
         return actions.get(type);
     }
 
-    public List<String> availableActionsFor(String status) {
+    public List<String> availableProductActionsFor(String status) {
         return actions.values().stream()
                 .filter(a -> a.eligibleStatuses().contains(status))
+                .filter(a -> a.domain() == LifecycleDomain.PRODUCT)
+                .map(LifecycleAction::getType)
+                .sorted()
+                .collect(Collectors.toList());
+    }
+
+    public List<String> availableServiceActionsFor(String status) {
+        return actions.values().stream()
+                .filter(a -> a.eligibleStatuses().contains(status))
+                .filter(a -> a.domain() == LifecycleDomain.SERVICE)
                 .map(LifecycleAction::getType)
                 .sorted()
                 .collect(Collectors.toList());

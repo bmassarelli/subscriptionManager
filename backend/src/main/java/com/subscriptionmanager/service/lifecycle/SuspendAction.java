@@ -13,6 +13,9 @@ public class SuspendAction implements LifecycleAction {
     public String getType() { return "SUSPEND"; }
 
     @Override
+    public LifecycleDomain domain() { return LifecycleDomain.PRODUCT; }
+
+    @Override
     public List<String> eligibleStatuses() { return List.of("AC", "TR"); }
 
     @Override

@@ -13,6 +13,9 @@ public class ChangeSimAction implements LifecycleAction {
     public String getType() { return "CHANGE_SIM"; }
 
     @Override
+    public LifecycleDomain domain() { return LifecycleDomain.SERVICE; }
+
+    @Override
     public List<String> eligibleStatuses() { return List.of("AC", "TR"); }
 
     @Override
@@ -25,9 +28,9 @@ public class ChangeSimAction implements LifecycleAction {
 
     @Override
     public String apply(Subscription subscription, Map<String, Object> data) {
-        String oldSim = subscription.getSimIccid();
+        String oldSim = subscription.getService().getSimIccid();
         String newSim = (String) data.get("simIccid");
-        subscription.setSimIccid(newSim);
+        subscription.getService().setSimIccid(newSim);
         return (oldSim == null ? "none" : oldSim) + " -> " + newSim;
     }
 }

@@ -1,17 +1,22 @@
 package com.subscriptionmanager.controller;
 
+import com.subscriptionmanager.service.ClientHasSubscriptionsException;
+import com.subscriptionmanager.service.ClientNotFoundException;
 import com.subscriptionmanager.service.DuplicateClientFieldException;
 import com.subscriptionmanager.service.InvalidClientReferenceException;
 import com.subscriptionmanager.service.InvalidPaymentModeException;
 import com.subscriptionmanager.service.InvalidPlatformException;
+import com.subscriptionmanager.service.InvalidProductOfferingException;
 import com.subscriptionmanager.service.lifecycle.InvalidLifecycleTransitionException;
 import com.subscriptionmanager.service.lifecycle.LifecycleActionValidationException;
 import com.subscriptionmanager.service.lifecycle.SubscriptionNotFoundException;
 import com.subscriptionmanager.service.lifecycle.UnknownLifecycleActionException;
+import com.subscriptionmanager.service.lifecycle.WrongLifecycleDomainException;
 import com.subscriptionmanager.service.resource.InvalidResourceTypeException;
 import com.subscriptionmanager.service.resource.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -47,9 +52,24 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("paymentModeId", ex.getMessage()));
     }
 
+    @ExceptionHandler(InvalidProductOfferingException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidProductOffering(InvalidProductOfferingException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("po", ex.getMessage()));
+    }
+
     @ExceptionHandler(DuplicateClientFieldException.class)
     public ResponseEntity<Map<String, String>> handleDuplicateClientField(DuplicateClientFieldException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(ex.getField(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(ClientNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleClientNotFound(ClientNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("clientId", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ClientHasSubscriptionsException.class)
+    public ResponseEntity<Map<String, String>> handleClientHasSubscriptions(ClientHasSubscriptionsException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("clientId", ex.getMessage()));
     }
 
     @ExceptionHandler(SubscriptionNotFoundException.class)
@@ -59,6 +79,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(UnknownLifecycleActionException.class)
     public ResponseEntity<Map<String, String>> handleUnknownLifecycleAction(UnknownLifecycleActionException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("type", ex.getMessage()));
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<Map<String, String>> handleAuthenticationException(AuthenticationException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid username or password"));
+    }
+
+    @ExceptionHandler(WrongLifecycleDomainException.class)
+    public ResponseEntity<Map<String, String>> handleWrongLifecycleDomain(WrongLifecycleDomainException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("type", ex.getMessage()));
     }
 

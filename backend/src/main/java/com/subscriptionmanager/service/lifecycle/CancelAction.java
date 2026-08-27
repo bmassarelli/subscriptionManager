@@ -1,6 +1,7 @@
 package com.subscriptionmanager.service.lifecycle;
 
 import com.subscriptionmanager.entity.Subscription;
+import com.subscriptionmanager.repository.ResourceRepository;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -10,8 +11,17 @@ import java.util.Map;
 @Component
 public class CancelAction implements LifecycleAction {
 
+    private final ResourceRepository resourceRepository;
+
+    public CancelAction(ResourceRepository resourceRepository) {
+        this.resourceRepository = resourceRepository;
+    }
+
     @Override
     public String getType() { return "CANCEL"; }
+
+    @Override
+    public LifecycleDomain domain() { return LifecycleDomain.PRODUCT; }
 
     @Override
     public List<String> eligibleStatuses() { return List.of("AC", "TR", "SU"); }
@@ -36,6 +46,12 @@ public class CancelAction implements LifecycleAction {
             subscription.setDeactivateDate(today);
         }
 
-        return from + " -> CA" + (immediate ? " (immediate)" : "");
+        long releasedResources = resourceRepository.deleteByService_Subscription_Id(subscription.getId());
+
+        String description = from + " -> CA" + (immediate ? " (immediate)" : "");
+        if (releasedResources > 0) {
+            description += " (" + releasedResources + " resources released)";
+        }
+        return description;
     }
 }

@@ -17,6 +17,15 @@ public class Operation {
     @JoinColumn(name = "SUBSCRIPTION_ID")
     private Subscription subscription;
 
+    // Doubles as this app's Product Order / Service Order history (TMF622/TMF641) — no separate
+    // ProductOrder/ServiceOrder entity exists because every operation here is synchronous
+    // (status is only ever COMPLETED/FAILED, never an intermediate state like inProgress that
+    // would need its own record apart from the resulting Subscription/Service state).
+    // CREATE/SUSPEND/RECONNECT/CANCEL are Product Order history; CHANGE_PLAN/CHANGE_MSISDN/
+    // CHANGE_SIM are Service Order history (mirrors LifecycleAction.domain(), though CREATE isn't
+    // dispatched through a LifecycleAction and so has no domain() of its own — it's Product by
+    // nature, it creates the Product). See
+    // openspec/changes/archive/2026-08-26-clarify-product-order-vs-product.
     @Column(name = "OPERATION_TYPE")
     private String operationType;
 

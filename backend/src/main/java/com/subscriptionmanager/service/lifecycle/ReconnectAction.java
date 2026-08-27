@@ -13,6 +13,9 @@ public class ReconnectAction implements LifecycleAction {
     public String getType() { return "RECONNECT"; }
 
     @Override
+    public LifecycleDomain domain() { return LifecycleDomain.PRODUCT; }
+
+    @Override
     public List<String> eligibleStatuses() { return List.of("SU"); }
 
     @Override

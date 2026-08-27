@@ -1,5 +1,12 @@
 import { useState, useEffect } from 'react';
-import { ALL_STATUSES, STATUS_LABELS } from '../constants';
+import { ALL_STATUSES, STATUS_LABELS, STATUS_TOKEN, OPERATION_TYPE_CHART_TOKEN } from '../constants';
+import { apiFetch } from '../api';
+import LoadingState from './ui/LoadingState';
+import ErrorState from './ui/ErrorState';
+import EmptyState from './ui/EmptyState';
+import MetricCard from './ui/MetricCard';
+import PieChart from './ui/PieChart';
+import DataTable from './ui/DataTable';
 
 export default function DashboardModule() {
   const [summary, setSummary] = useState(null);
@@ -8,7 +15,7 @@ export default function DashboardModule() {
 
   useEffect(() => {
     setLoading(true);
-    fetch('http://localhost:8080/api/dashboard/summary')
+    apiFetch('/api/dashboard/summary')
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch dashboard summary');
         return res.json();
@@ -21,83 +28,52 @@ export default function DashboardModule() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return (
-    <div className="flex-grow-1 p-3 d-flex justify-content-center align-items-center">
-      <div className="spinner-border text-primary" role="status">
-        <span className="visually-hidden">Loading...</span>
-      </div>
-    </div>
-  );
-
-  if (error) return (
-    <div className="flex-grow-1 p-3">
-      <div className="alert alert-danger">{error}</div>
-    </div>
-  );
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState message={error} />;
 
   const operationTypeEntries = Object.entries(summary.operationTypeCounts);
 
+  const statusSlices = ALL_STATUSES.map(status => ({
+    key: status,
+    label: STATUS_LABELS[status],
+    value: summary.statusCounts[status] ?? 0,
+    token: STATUS_TOKEN[status],
+  }));
+
+  const operationTypeSlices = [...operationTypeEntries]
+    .sort((a, b) => b[1] - a[1])
+    .map(([type, count]) => ({
+      key: type,
+      label: type,
+      value: count,
+      token: OPERATION_TYPE_CHART_TOKEN[type] || 'cat-8',
+    }));
+
   return (
-    <div className="flex-grow-1 p-3">
-      <h2 className="h4 mb-3">Dashboard</h2>
+    <div className="page">
+      <h2 className="page__title mb-3">Dashboard</h2>
 
       <div className="row g-3 mb-4">
         <div className="col-md-3">
-          <div className="border rounded p-3 text-center">
-            <div className="text-muted small">Total Clients</div>
-            <div className="fs-3 fw-semibold">{summary.clientCount}</div>
-          </div>
+          <MetricCard label="Total Clients" value={summary.clientCount} />
         </div>
         <div className="col-md-3">
-          <div className="border rounded p-3 text-center">
-            <div className="text-muted small">Total Subscriptions</div>
-            <div className="fs-3 fw-semibold">{summary.subscriptionCount}</div>
-          </div>
+          <MetricCard label="Total Subscriptions" value={summary.subscriptionCount} />
         </div>
       </div>
 
       <div className="row g-3 mb-4">
         <div className="col-md-6">
           <h3 className="h6">Subscriptions by Status</h3>
-          <table className="table table-sm table-striped">
-            <thead>
-              <tr>
-                <th>Status</th>
-                <th>Count</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ALL_STATUSES.map(status => (
-                <tr key={status}>
-                  <td>{STATUS_LABELS[status]}</td>
-                  <td>{summary.statusCounts[status] ?? 0}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <PieChart slices={statusSlices} />
         </div>
 
         <div className="col-md-6">
           <h3 className="h6">Operations by Type</h3>
           {operationTypeEntries.length === 0 ? (
-            <div className="text-muted small">No operations recorded yet.</div>
+            <EmptyState message="No operations recorded yet." />
           ) : (
-            <table className="table table-sm table-striped">
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Count</th>
-                </tr>
-              </thead>
-              <tbody>
-                {operationTypeEntries.map(([type, count]) => (
-                  <tr key={type}>
-                    <td>{type}</td>
-                    <td>{count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <PieChart slices={operationTypeSlices} />
           )}
         </div>
       </div>
@@ -105,9 +81,9 @@ export default function DashboardModule() {
       <div>
         <h3 className="h6">Recent Operations</h3>
         {summary.recentOperations.length === 0 ? (
-          <div className="text-muted small">No operations recorded yet.</div>
+          <EmptyState message="No operations recorded yet." />
         ) : (
-          <table className="table table-sm table-striped">
+          <DataTable>
             <thead>
               <tr>
                 <th>Date</th>
@@ -119,14 +95,14 @@ export default function DashboardModule() {
             <tbody>
               {summary.recentOperations.map(op => (
                 <tr key={op.id}>
-                  <td className="text-muted">{op.createdDate}</td>
+                  <td className="text-muted font-mono">{op.createdDate}</td>
                   <td>{op.clientName}</td>
                   <td>{op.operationType}</td>
                   <td>{op.status}</td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         )}
       </div>
     </div>

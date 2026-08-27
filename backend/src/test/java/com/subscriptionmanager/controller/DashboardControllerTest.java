@@ -1,11 +1,16 @@
 package com.subscriptionmanager.controller;
 
+import com.subscriptionmanager.config.SecurityConfig;
 import com.subscriptionmanager.dto.DashboardSummaryDTO;
+import com.subscriptionmanager.repository.AppUserRepository;
+import com.subscriptionmanager.service.AppUserDetailsService;
 import com.subscriptionmanager.service.DashboardService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
@@ -17,6 +22,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(DashboardController.class)
+@Import({SecurityConfig.class, AppUserDetailsService.class})
+@WithMockUser
 class DashboardControllerTest {
 
     @Autowired
@@ -24,6 +31,9 @@ class DashboardControllerTest {
 
     @MockBean
     private DashboardService service;
+
+    @MockBean
+    private AppUserRepository appUserRepository;
 
     @Test
     void returnsTheDashboardSummary() throws Exception {

@@ -1,26 +1,38 @@
 package com.subscriptionmanager.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.subscriptionmanager.config.SecurityConfig;
 import com.subscriptionmanager.dto.ClientResponseDTO;
+import com.subscriptionmanager.repository.AppUserRepository;
+import com.subscriptionmanager.service.AppUserDetailsService;
+import com.subscriptionmanager.service.ClientHasSubscriptionsException;
+import com.subscriptionmanager.service.ClientNotFoundException;
 import com.subscriptionmanager.service.ClientService;
 import com.subscriptionmanager.service.DuplicateClientFieldException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ClientController.class)
+@Import({SecurityConfig.class, AppUserDetailsService.class})
+@WithMockUser
 class ClientControllerTest {
 
     @Autowired
@@ -31,6 +43,9 @@ class ClientControllerTest {
 
     @MockBean
     private ClientService clientService;
+
+    @MockBean
+    private AppUserRepository appUserRepository;
 
     @Test
     void listsAllClients() throws Exception {
@@ -173,5 +188,104 @@ class ClientControllerTest {
                         .content(body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.clientId").value(1));
+    }
+
+    @Test
+    void getsClientById() throws Exception {
+        when(clientService.getById(1L)).thenReturn(
+                new ClientResponseDTO(1L, "John", "Doe", "john.doe@example.com", "+11234567890"));
+
+        mockMvc.perform(get("/api/clients/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("John"));
+    }
+
+    @Test
+    void returns404ForNonExistentClientOnGetById() throws Exception {
+        when(clientService.getById(999L)).thenThrow(new ClientNotFoundException("No client exists with id 999"));
+
+        mockMvc.perform(get("/api/clients/999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.clientId").exists());
+    }
+
+    @Test
+    void updatesClientAndReturnsUpdatedData() throws Exception {
+        when(clientService.update(eq(1L), any())).thenReturn(
+                new ClientResponseDTO(1L, "Jane", "Doe", "john.doe@example.com", "+11234567890"));
+
+        Map<String, String> body = Map.of(
+                "name", "Jane",
+                "lastName", "Doe",
+                "email", "john.doe@example.com",
+                "msisdn", "+11234567890");
+
+        mockMvc.perform(put("/api/clients/1")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Jane"));
+    }
+
+    @Test
+    void returns404ForNonExistentClientOnUpdate() throws Exception {
+        when(clientService.update(eq(999L), any()))
+                .thenThrow(new ClientNotFoundException("No client exists with id 999"));
+
+        Map<String, String> body = Map.of(
+                "name", "Jane",
+                "lastName", "Doe",
+                "email", "john.doe@example.com",
+                "msisdn", "+11234567890");
+
+        mockMvc.perform(put("/api/clients/999")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.clientId").exists());
+    }
+
+    @Test
+    void rejectsUpdateWithDuplicateEmail() throws Exception {
+        when(clientService.update(eq(1L), any()))
+                .thenThrow(new DuplicateClientFieldException("email", "A client with this email already exists"));
+
+        Map<String, String> body = Map.of(
+                "name", "Jane",
+                "lastName", "Doe",
+                "email", "john.doe@example.com",
+                "msisdn", "+11234567890");
+
+        mockMvc.perform(put("/api/clients/1")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.email").exists());
+    }
+
+    @Test
+    void deletesClientSuccessfully() throws Exception {
+        mockMvc.perform(delete("/api/clients/1"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void returns409WhenClientHasSubscriptions() throws Exception {
+        org.mockito.Mockito.doThrow(new ClientHasSubscriptionsException("Cannot delete client 1: 2 subscription(s) exist"))
+                .when(clientService).delete(1L);
+
+        mockMvc.perform(delete("/api/clients/1"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.clientId").exists());
+    }
+
+    @Test
+    void returns404ForNonExistentClientOnDelete() throws Exception {
+        org.mockito.Mockito.doThrow(new ClientNotFoundException("No client exists with id 999"))
+                .when(clientService).delete(999L);
+
+        mockMvc.perform(delete("/api/clients/999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.clientId").exists());
     }
 }

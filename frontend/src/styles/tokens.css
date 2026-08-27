@@ -1,0 +1,60 @@
+/*
+ * Design tokens — single source of truth for the Subscription Manager
+ * visual system. Change a value here and it propagates everywhere;
+ * nothing below this file should hardcode a hex value.
+ */
+:root {
+  /* Core palette (named per the approved design direction) */
+  --color-graphite: #1B2430;
+  --color-graphite-soft: #2A3644;
+  --color-canvas: #F6F7F9;
+  --color-signal: #146C69;
+  --color-signal-soft: #E3F0EF;
+  --color-amber: #C77F1A;
+  --color-amber-soft: #FBEDDC;
+  --color-coral: #C4432D;
+  --color-coral-soft: #FBE7E3;
+  --color-slate: #6B7785;
+  --color-slate-soft: #E7E9EC;
+  --color-slate-muted: #A7AFB8;
+
+  /* Text */
+  --color-text: #1B2430;
+  --color-text-muted: #6B7785;
+  --color-text-inverse: #F6F7F9;
+
+  /* Surfaces */
+  --color-surface: #FFFFFF;
+  --color-surface-sunken: #EEF0F3;
+  --color-border: #DDE1E6;
+
+  /* Typography */
+  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+
+  /* Chart categorical palette — series identity only, kept distinct from the
+     status tokens above so a chart color never impersonates a subscription
+     state. Fixed hue order, validated for CVD-safe adjacency (see dataviz
+     skill); assign in sequence, never cycle. */
+  --chart-cat-1: #2a78d6;
+  --chart-cat-2: #eb6834;
+  --chart-cat-3: #1baf7a;
+  --chart-cat-4: #eda100;
+  --chart-cat-5: #e87ba4;
+  --chart-cat-6: #008300;
+  --chart-cat-7: #4a3aa7;
+  --chart-cat-8: #e34948;
+
+  /* Spacing / shape */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 1px 2px rgba(27, 36, 48, 0.08);
+  --shadow-md: 0 4px 14px rgba(27, 36, 48, 0.12);
+
+  /* App shell */
+  --shell-topbar-height: 52px;
+  --shell-sidebar-width: 208px;
+  --shell-sidebar-width-narrow: 64px;
+  --shell-filter-width: 232px;
+}

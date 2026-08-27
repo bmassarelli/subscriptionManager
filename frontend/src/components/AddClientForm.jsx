@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { apiFetch } from '../api';
 
 const INITIAL_VALUES = { name: '', lastName: '', email: '', msisdn: '' };
 
@@ -9,8 +10,11 @@ const FIELD_LABELS = {
   msisdn: 'MSISDN',
 };
 
-export default function AddClientForm({ onCreated }) {
-  const [values, setValues] = useState(INITIAL_VALUES);
+export default function AddClientForm({ onCreated, client, onSaved }) {
+  const isEditMode = !!client;
+  const [values, setValues] = useState(() => (client
+    ? { name: client.name, lastName: client.lastName, email: client.email, msisdn: client.msisdn }
+    : INITIAL_VALUES));
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -44,8 +48,11 @@ export default function AddClientForm({ onCreated }) {
     setErrors({});
     setSubmitting(true);
     try {
-      const res = await fetch('http://localhost:8080/api/clients', {
-        method: 'POST',
+      const url = isEditMode
+        ? `/api/clients/${client.clientId}`
+        : '/api/clients';
+      const res = await apiFetch(url, {
+        method: isEditMode ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values),
       });
@@ -57,12 +64,16 @@ export default function AddClientForm({ onCreated }) {
       }
 
       if (!res.ok) {
-        throw new Error('Failed to create client');
+        throw new Error(isEditMode ? 'Failed to update client' : 'Failed to create client');
       }
 
-      onCreated?.();
-      setValues(INITIAL_VALUES);
-      setSuccessMessage('Client created successfully.');
+      if (isEditMode) {
+        onSaved?.();
+      } else {
+        onCreated?.();
+        setValues(INITIAL_VALUES);
+        setSuccessMessage('Client created successfully.');
+      }
     } catch (err) {
       setErrors({ form: err.message });
     } finally {
@@ -97,7 +108,7 @@ export default function AddClientForm({ onCreated }) {
         ))}
         <div className="col-auto">
           <button type="submit" className="btn btn-primary" disabled={submitting}>
-            {submitting ? 'Saving...' : 'Save Client'}
+            {submitting ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Save Client')}
           </button>
         </div>
       </div>

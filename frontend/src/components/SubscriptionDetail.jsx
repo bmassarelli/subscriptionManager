@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { STATUS_LABELS, STATUS_BADGE_CLASSES } from '../constants';
+import { STATUS_LABELS, STATUS_TOKEN, statusRailClassName } from '../constants';
+import { apiFetch } from '../api';
 import SubscriptionHistoryTimeline from './SubscriptionHistoryTimeline';
+import StatusBadge from './ui/StatusBadge';
+import LoadingState from './ui/LoadingState';
+import ErrorState from './ui/ErrorState';
+import EmptyState from './ui/EmptyState';
+import DataTable from './ui/DataTable';
 
 const ACTION_LABELS = {
   SUSPEND: 'Suspend',
@@ -21,6 +27,7 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeAction, setActiveAction] = useState(null);
+  const [activeActionDomain, setActiveActionDomain] = useState(null);
   const [actionValues, setActionValues] = useState({});
   const [actionError, setActionError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -29,19 +36,23 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
   const [newResourceValue, setNewResourceValue] = useState('');
   const [resourceError, setResourceError] = useState(null);
   const [resourceSubmitting, setResourceSubmitting] = useState(false);
+  const [editingSubscription, setEditingSubscription] = useState(false);
+  const [editValues, setEditValues] = useState({ contract: '', amount: '' });
+  const [editError, setEditError] = useState(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   const loadDetail = useCallback(() => {
     setLoading(true);
     return Promise.all([
-      fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}`).then(res => {
+      apiFetch(`/api/subscriptions/${subscriptionId}`).then(res => {
         if (!res.ok) throw new Error('Failed to fetch subscription detail');
         return res.json();
       }),
-      fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}/operations`).then(res => {
+      apiFetch(`/api/subscriptions/${subscriptionId}/operations`).then(res => {
         if (!res.ok) throw new Error('Failed to fetch subscription operations');
         return res.json();
       }),
-      fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}/resources`).then(res => {
+      apiFetch(`/api/subscriptions/${subscriptionId}/resources`).then(res => {
         if (!res.ok) throw new Error('Failed to fetch subscription resources');
         return res.json();
       }),
@@ -61,20 +72,22 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
   }, [loadDetail]);
 
   useEffect(() => {
-    fetch('http://localhost:8080/api/platforms')
+    apiFetch('/api/platforms')
       .then(res => (res.ok ? res.json() : []))
       .then(setPlatforms)
       .catch(() => setPlatforms([]));
   }, []);
 
-  function openAction(type) {
+  function openAction(type, domain) {
     setActiveAction(type);
+    setActiveActionDomain(domain);
     setActionValues(type === 'CANCEL' ? { immediate: false } : {});
     setActionError(null);
   }
 
   function closeAction() {
     setActiveAction(null);
+    setActiveActionDomain(null);
     setActionValues({});
     setActionError(null);
   }
@@ -84,7 +97,7 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
     setResourceSubmitting(true);
     setResourceError(null);
     try {
-      const res = await fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}/resources`, {
+      const res = await apiFetch(`/api/subscriptions/${subscriptionId}/resources`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resourceType: newResourceType, value: newResourceValue }),
@@ -107,8 +120,46 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
     }
   }
 
+  function openEditSubscription() {
+    setEditValues({ contract: detail.contract, amount: String(detail.amount) });
+    setEditError(null);
+    setEditingSubscription(true);
+  }
+
+  function closeEditSubscription() {
+    setEditingSubscription(false);
+    setEditError(null);
+  }
+
+  async function submitEditSubscription(e) {
+    e.preventDefault();
+    setEditSubmitting(true);
+    setEditError(null);
+    try {
+      const res = await apiFetch(`/api/subscriptions/${subscriptionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contract: editValues.contract, amount: Number(editValues.amount) }),
+      });
+
+      if (!res.ok) {
+        const errorBody = await res.json();
+        const message = Object.values(errorBody)[0] || 'Failed to update subscription';
+        setEditError(message);
+        return;
+      }
+
+      setEditingSubscription(false);
+      await loadDetail();
+    } catch (err) {
+      setEditError(err.message);
+    } finally {
+      setEditSubmitting(false);
+    }
+  }
+
   async function removeResource(resourceId) {
-    await fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}/resources/${resourceId}`, {
+    await apiFetch(`/api/subscriptions/${subscriptionId}/resources/${resourceId}`, {
       method: 'DELETE',
     });
     await loadDetail();
@@ -119,7 +170,7 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
     setSubmitting(true);
     setActionError(null);
     try {
-      const res = await fetch(`http://localhost:8080/api/subscriptions/${subscriptionId}/actions`, {
+      const res = await apiFetch(`/api/subscriptions/${subscriptionId}/${activeActionDomain === 'product' ? 'product-actions' : 'service-actions'}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: activeAction, ...actionValues }),
@@ -141,45 +192,81 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
     }
   }
 
-  if (loading) return (
-    <div className="flex-grow-1 p-3 d-flex justify-content-center align-items-center">
-      <div className="spinner-border text-primary" role="status">
-        <span className="visually-hidden">Loading...</span>
-      </div>
-    </div>
-  );
+  if (loading) return <LoadingState />;
 
   if (error) return (
-    <div className="flex-grow-1 p-3">
+    <div className="page">
       <button className="btn btn-link p-0 mb-3" onClick={onBack}>&larr; Back</button>
-      <div className="alert alert-danger">{error}</div>
+      <ErrorState message={error} />
     </div>
   );
 
   return (
-    <div className="flex-grow-1 p-3 overflow-auto">
+    <div className="page">
       <button className="btn btn-link p-0 mb-3" onClick={onBack}>&larr; Back</button>
 
-      <div className="d-flex justify-content-between align-items-start mb-3">
+      <div className={`${statusRailClassName(detail.status)} d-flex justify-content-between align-items-start mb-3 p-3 bg-white border rounded`}>
         <div>
           <h2 className="h4 mb-1">{detail.clientName}</h2>
-          <div className="text-muted">{detail.email} · {detail.msisdn}</div>
+          <div className="text-muted">{detail.email} · <span className="font-mono">{detail.msisdn}</span></div>
         </div>
-        <span className={STATUS_BADGE_CLASSES[detail.status]}>{STATUS_LABELS[detail.status]}</span>
+        <StatusBadge token={STATUS_TOKEN[detail.status]} label={STATUS_LABELS[detail.status]} />
       </div>
 
       <div className="row g-3 mb-3">
         <div className="col-md-6">
-          <h3 className="h6">Subscription</h3>
+          <div className="d-flex justify-content-between align-items-center">
+            <h3 className="h6 mb-0">Subscription</h3>
+            {!editingSubscription && (
+              <button type="button" className="btn btn-link btn-sm p-0" onClick={openEditSubscription}>
+                Edit
+              </button>
+            )}
+          </div>
           <dl className="row mb-0 small">
             <dt className="col-5">Platform</dt><dd className="col-7">{detail.platform}</dd>
-            <dt className="col-5">Contract</dt><dd className="col-7">{detail.contract}</dd>
-            <dt className="col-5">PO</dt><dd className="col-7">{detail.po || '—'}</dd>
+            <dt className="col-5">Contract</dt><dd className="col-7 font-mono">{detail.contract}</dd>
+            <dt className="col-5">PO</dt><dd className="col-7 font-mono">{detail.po || '—'}</dd>
             <dt className="col-5">Payment Mode</dt><dd className="col-7">{detail.paymentModeName || '—'}</dd>
-            <dt className="col-5">Amount</dt><dd className="col-7">${detail.amount.toFixed(2)}</dd>
-            <dt className="col-5">MSISDN</dt><dd className="col-7">{detail.subscriptionMsisdn || '—'}</dd>
-            <dt className="col-5">SIM/eSIM</dt><dd className="col-7">{detail.simIccid || '—'}</dd>
+            <dt className="col-5">Amount</dt><dd className="col-7 font-mono">${detail.amount.toFixed(2)}</dd>
+            <dt className="col-5">MSISDN</dt><dd className="col-7 font-mono">{detail.subscriptionMsisdn || '—'}</dd>
+            <dt className="col-5">SIM/eSIM</dt><dd className="col-7 font-mono">{detail.simIccid || '—'}</dd>
           </dl>
+
+          {editingSubscription && (
+            <form className="border rounded p-3 mt-2 bg-light" onSubmit={submitEditSubscription}>
+              {editError && <div className="alert alert-danger py-2">{editError}</div>}
+              <div className="row g-2 align-items-end">
+                <div className="col-auto">
+                  <label className="form-label" htmlFor="edit-contract">Contract</label>
+                  <input
+                    id="edit-contract"
+                    className="form-control"
+                    value={editValues.contract}
+                    onChange={e => setEditValues(prev => ({ ...prev, contract: e.target.value }))}
+                  />
+                </div>
+                <div className="col-auto">
+                  <label className="form-label" htmlFor="edit-amount">Amount</label>
+                  <input
+                    id="edit-amount"
+                    type="number"
+                    className="form-control"
+                    value={editValues.amount}
+                    onChange={e => setEditValues(prev => ({ ...prev, amount: e.target.value }))}
+                  />
+                </div>
+                <div className="col-auto d-flex gap-2">
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={editSubmitting}>
+                    {editSubmitting ? 'Saving...' : 'Save'}
+                  </button>
+                  <button type="button" className="btn btn-outline-secondary btn-sm" onClick={closeEditSubscription}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
         </div>
         <div className="col-md-6">
           <h3 className="h6">Dates</h3>
@@ -196,16 +283,26 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
 
       <div className="mb-3">
         <h3 className="h6">Lifecycle Actions</h3>
-        {detail.availableActions.length === 0 ? (
-          <div className="text-muted small">No actions available for this subscription's status.</div>
+        {detail.availableProductActions.length === 0 && detail.availableServiceActions.length === 0 ? (
+          <EmptyState message="No actions available for this subscription's status." />
         ) : (
           <div className="d-flex gap-2 flex-wrap">
-            {detail.availableActions.map(type => (
+            {detail.availableProductActions.map(type => (
               <button
                 key={type}
                 type="button"
                 className="btn btn-outline-primary btn-sm"
-                onClick={() => openAction(type)}
+                onClick={() => openAction(type, 'product')}
+              >
+                {ACTION_LABELS[type] || type}
+              </button>
+            ))}
+            {detail.availableServiceActions.map(type => (
+              <button
+                key={type}
+                type="button"
+                className="btn btn-outline-primary btn-sm"
+                onClick={() => openAction(type, 'service')}
               >
                 {ACTION_LABELS[type] || type}
               </button>
@@ -332,34 +429,36 @@ export default function SubscriptionDetail({ subscriptionId, onBack }) {
         )}
 
         {resources.length === 0 ? (
-          <div className="text-muted small mt-2">No resources assigned yet.</div>
+          <div className="mt-2"><EmptyState message="No resources assigned yet." /></div>
         ) : (
-          <table className="table table-sm table-striped mt-2">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Value</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {resources.map(resource => (
-                <tr key={resource.id}>
-                  <td>{resource.resourceType}</td>
-                  <td>{resource.value}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn btn-link btn-sm text-danger p-0"
-                      onClick={() => removeResource(resource.id)}
-                    >
-                      Remove
-                    </button>
-                  </td>
+          <div className="mt-2">
+            <DataTable>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Value</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {resources.map(resource => (
+                  <tr key={resource.id}>
+                    <td>{resource.resourceType}</td>
+                    <td className="font-mono">{resource.value}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn btn-link btn-sm text-danger p-0"
+                        onClick={() => removeResource(resource.id)}
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </DataTable>
+          </div>
         )}
       </div>
 
