@@ -1,6 +1,6 @@
 import './ui.css';
 
-const TOKEN_COLOR = {
+export const TOKEN_COLOR = {
   signal: 'var(--color-signal)',
   amber: 'var(--color-amber)',
   slate: 'var(--color-slate)',
@@ -15,6 +15,7 @@ const TOKEN_COLOR = {
   'cat-6': 'var(--chart-cat-6)',
   'cat-7': 'var(--chart-cat-7)',
   'cat-8': 'var(--chart-cat-8)',
+  'cat-9': 'var(--chart-cat-9)',
 };
 
 // A pie chart is a color-only encoding, so the legend is not decoration —

@@ -220,6 +220,7 @@
 .pie-chart__swatch--cat-6 { background: var(--chart-cat-6); }
 .pie-chart__swatch--cat-7 { background: var(--chart-cat-7); }
 .pie-chart__swatch--cat-8 { background: var(--chart-cat-8); }
+.pie-chart__swatch--cat-9 { background: var(--chart-cat-9); }
 .pie-chart__legend-label {
   color: var(--color-text-muted);
   flex: 1 1 auto;

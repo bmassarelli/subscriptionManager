@@ -46,7 +46,10 @@ export default function DashboardModule() {
       key: type,
       label: type,
       value: count,
-      token: OPERATION_TYPE_CHART_TOKEN[type] || 'cat-8',
+      // Neutral fallback for an unrecognized operation type — must not be any
+      // real category's token ('cat-1'..'cat-9'), or an unknown type would be
+      // visually indistinguishable from whichever operation owns that slot.
+      token: OPERATION_TYPE_CHART_TOKEN[type] || 'slate',
     }));
 
   return (
