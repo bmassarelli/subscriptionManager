@@ -87,13 +87,17 @@ subscriptionManager/
 │           └── application.properties  # ⚠ local only — never commit (see below)
 ├── frontend/                          # React app (Create React App + Bootstrap 5)
 │   └── src/
-│       ├── App.jsx                    # Root: activeModule, subscription list/filter/sort/page state
+│       ├── App.jsx                    # Root: auth gate (LoginScreen vs app shell), activeModule,
+│       │                              # subscription list/filter/sort/page state
+│       ├── api.js                     # apiFetch — centralized fetch wrapper (credentials: 'include',
+│       │                              # dispatches 'auth:unauthorized' on 401)
 │       ├── constants.js               # STATUS_LABELS, STATUS_BADGE_CLASSES, ALL_STATUSES (6-status model);
 │       │                              # ALL_OPERATION_TYPES, OPERATION_TYPE_LABELS, ALL_OPERATION_STATUSES,
 │       │                              # OPERATION_STATUS_LABELS
 │       ├── utils/filterSort.js        # Pure functions: applyFilters, applySort, paginate, applyClientSearch,
 │       │                              # applyOperationFilters
 │       └── components/
+│           ├── LoginScreen.jsx        # Username/password form, shown instead of the app when unauthenticated
 │           ├── Navbar.jsx             # Brand bar only
 │           ├── Sidebar.jsx            # Left module menu (Subscriptions, Clients, Operations, Dashboard)
 │           ├── FilterSidebar.jsx
@@ -148,7 +152,7 @@ server.port=8080
 cd frontend
 npm install
 npm start        # http://localhost:3000
-npm test         # run tests (93 tests, all passing)
+npm test         # run tests (104 tests, all passing)
 npm run build    # production build
 ```
 
@@ -182,8 +186,10 @@ consistent with that established convention, not a new exposure.
 
 ## Database
 
-Oracle DB, schema: `SUBSCRIPTION_MANAGER`. All six migrations (`001`–`006`) are
-applied to the live training DB. Main tables:
+Oracle DB, schema: `SUBSCRIPTION_MANAGER`. Migrations `001`–`006` are applied to the live
+training DB; `007-app-user.sql` is committed but not yet applied (the training DB was
+unreachable for the entire session that added it — apply it before relying on login working
+end-to-end). Main tables:
 
 - `CLIENT` — CLIENT_ID, NAME, LAST_NAME, EMAIL, MSISDN (EMAIL and MSISDN are
   unique — `UQ_CLIENT_EMAIL`, `UQ_CLIENT_MSISDN`, added in `003-hardening.sql`)
@@ -199,6 +205,8 @@ applied to the live training DB. Main tables:
 - `PRODUCT_OFFERING` — ID, NAME (catalog for `po`, added in `005-product-offering.sql`)
 - `SERVICE` — ID, SUBSCRIPTION_ID (FK to `SUBSCRIPTIONS`, unique — 1:1), PLATFORM,
   MSISDN, SIM_ICCID (added in `006-service.sql`, extracted off `SUBSCRIPTIONS`)
+- `APP_USER` — ID, USERNAME (unique), PASSWORD_HASH (BCrypt; added in `007-app-user.sql`,
+  backs the login gate — see Authentication below)
 
 Full column reference is in `README.md`.
 
