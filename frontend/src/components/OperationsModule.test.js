@@ -32,7 +32,7 @@ test('fetches and renders the operations list on mount', async () => {
 
   expect(await screen.findByText('SUSPEND')).toBeInTheDocument();
   expect(screen.getByText('John Doe')).toBeInTheDocument();
-  expect(global.fetch).toHaveBeenCalledWith('http://localhost:8080/api/operations');
+  expect(global.fetch).toHaveBeenCalledWith('http://localhost:8080/api/operations', { credentials: 'include' });
 });
 
 test('shows an empty-state message when the list is empty', async () => {

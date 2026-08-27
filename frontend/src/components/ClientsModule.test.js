@@ -22,7 +22,7 @@ test('fetches and renders the client list on mount', async () => {
 
   expect(await screen.findByText('John')).toBeInTheDocument();
   expect(screen.getByText('Doe')).toBeInTheDocument();
-  expect(global.fetch).toHaveBeenCalledWith('http://localhost:8080/api/clients');
+  expect(global.fetch).toHaveBeenCalledWith('http://localhost:8080/api/clients', { credentials: 'include' });
 });
 
 test('shows an empty-state message when the list is empty', async () => {
