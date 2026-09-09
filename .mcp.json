@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ros-ai-mcp": {
+      "command": "node",
+      "args": ["tools/ros-ai-mcp/dist/index.js"]
+    }
+  }
+}

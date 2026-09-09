@@ -1,0 +1,8 @@
+{
+  "name": "documenting-ros-groovy-action-scripts",
+  "private": true,
+  "description": "Reusable script that renders the team's Groovy-action documentation template as one .docx per activity.",
+  "dependencies": {
+    "docx": "^9.7.1"
+  }
+}
