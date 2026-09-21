@@ -73,13 +73,15 @@ Built and live-verified during this session (code complete, tests passing, `npm 
           Y: [FALTA] RESERVAR LINEA
           N: (converge directo — Portada y Locución no la necesitan)
       [FALTA] ALTA IMSI (siempre — Postpago, Portada y Locución la piden)
-      [NUEVO] INLINEDEC "¿Es Locución?" → tipoAlta=="LOCUCION"
-          Y: (nada — salta DATOS SOM e INVENTARIO)
+      [NUEVO] INLINEDEC "¿Es Locución?" (gate 1) → tipoAlta=="LOCUCION"
+          Y: (nada — salta DATOS SOM)
           N: [FALTA] DATOS SOM
-             [FALTA] INVENTARIO
       18. [Ya existe] INLINEDEC "IL?" → SYSTEMIL=="Y"
           Y: [Ya existe] INFLOW → INSTANTLINK_BSCS9 → OUTFLOW
           N: (converge directo)
+      [NUEVO] INLINEDEC "¿Es Locución?" (gate 2) → tipoAlta=="LOCUCION"
+          Y: (nada — salta INVENTARIO)
+          N: [FALTA] INVENTARIO
       21. [Ya existe] INFLOW → SERVICE_ORDERING_PROVISIONING_NOTIF → OUTFLOW → ES
 ```
 
@@ -87,7 +89,11 @@ Built and live-verified during this session (code complete, tests passing, `npm 
 
 **`SYSTEMCS` scope** (confirmed explicitly, overriding the initial "applies to everything except Postpago" phrasing): `Y` for Portada and Locución, `N` for Postpago, **not set at all for Prepago** — the `CS?` node structurally doesn't even exist on the Prepago (Y) branch, so this is enforced by topology, not just by the variable's value.
 
-**Open design point, not yet reconfirmed**: DATOS SOM and INVENTARIO are grouped under one `¿Es Locución?` gate, placed **before** the `IL?`/InstantLink gate — this reorders INVENTARIO relative to the Excel's literal sequence (Excel has it after INSTANT LINK). The alternative (two separate `¿Es Locución?` checks, preserving literal Excel order) was offered to the user and not yet chosen one way or the other; proceeding with the single-gate version as the default per this design’s reasoning (avoids a duplicate decision node) unless told otherwise before implementation.
+**Resolved (2026-09-21, Task 0 of the implementation plan):**
+- **Gate shape**: two separate `¿Es Locución?` gates, preserving the Excel's literal step order (DATOS SOM before INSTANT LINK, INVENTARIO after) — the single-gate alternative was rejected.
+- **Reuse vs. new Groovy**: create the new Groovy actions (`ALTA_IMSI_GROOVY`, `RESERVAR_LINEA_GROOVY`) rather than reusing the existing `PROCEDURE`-type actions as-is — both proceed as designed in §7.2/§7.3.
+
+~~Open design point~~ **Resolved**: two separate `¿Es Locución?` gates (not one), preserving the Excel's literal step order — see the "Resolved" note right after the diagram above.
 
 ## 7. Action designs
 
@@ -307,11 +313,11 @@ This is ROS platform configuration, not application code — there is no unit-te
 
 ## 9. Open questions / risks carried into implementation
 
-1. **Not yet reconfirmed**: single `¿Es Locución?` gate covering both DATOS SOM and INVENTARIO (reorders INVENTARIO before InstantLink, diverging from the Excel's literal sequence) vs. two separate gates preserving Excel's literal order. Proceeding with the single-gate version as default.
+1. ~~Not yet reconfirmed~~ **Resolved 2026-09-21**: two separate `¿Es Locución?` gates, preserving the Excel's literal order (DATOS SOM before InstantLink, INVENTARIO after) — see §6.
 2. `SOM_OBTENER_PARAMETROS_TECNICOS`'s real schema/connection and exact procedure/function name are unconfirmed — stays a prototype, not to be created for real in ROS until provided.
 3. `RESOURCE_INVENTORY_UPDATE`'s real domain/auth are unconfirmed — same, stays a prototype.
 4. `OBTIENE_CM_IMSI_HRLUD`'s OUT positions 4 and 5 have no `STORE_PARAM` in the existing action — unclear if they're genuinely unused or a pre-existing configuration gap. Not fixed here (out of scope — this design only creates a new Groovy alternative, `ALTA_IMSI_GROOVY`, that carries the same orphaned-output pattern forward without inventing a destination for it).
 5. `SO - Movil - Activate Validation` (90333)'s existing `buildParameter()` method contains dead/unrelated content referencing "Desactivar VMS"/actionId 40247 — flagged in the original read-only report, not addressed by this design (out of scope), left as-is.
-6. Whether to reuse the existing `OBTIENE_CM_IMSI_HRLUD`/`RESERVAR_LINEA_INVE` PROCEDURE-type actions directly in the new flow steps instead of the new Groovy wrappers (§7.2/7.3) is still open — the user asked for Groovy versions to be designed (per their own "SPs → Groovy" rule), but the existing PROCEDURE actions are already live and arguably simpler to just wire in as-is. Both options exist; implementation should confirm which one actually gets used before writing flow steps.
+6. ~~Whether to reuse the existing PROCEDURE-type actions~~ **Resolved 2026-09-21**: create the new Groovy wrappers (§7.2/7.3) — `ALTA_IMSI_GROOVY` and `RESERVAR_LINEA_GROOVY` go ahead as designed, not a reuse of `OBTIENE_CM_IMSI_HRLUD`/`RESERVAR_LINEA_INVE` as-is.
 7. `get_action_parameters` (§5) is implemented and live-verified but **not committed** in the `ros-ai-mcp` master repo — needs an explicit go-ahead before any commit, per this project's standing no-autonomous-commit rule.
 8. Nothing in this design has been applied to ROS. Every new/updated action and every new flow step is still a proposal pending explicit approval before any `save_action`/flow-editing work begins.

@@ -11,28 +11,24 @@
 ## Global Constraints
 
 - Every `save_action` call runs preview-only first (no `confirm:true`); the preview is shown to the user and **only re-run with `confirm:true` after they explicitly approve it**, one action at a time — never batch multiple confirms.
-- `SOM_OBTENER_PARAMETROS_TECNICOS` and `RESOURCE_INVENTORY_UPDATE` are **not created for real** in this plan — they stay design-only prototypes until real schema/domain/auth data exists (spec §9.2/§9.3). Tasks 4-5 below only cover the two actions with fully-confirmed real signatures (`RESERVAR_LINEA_GROOVY`, `ALTA_IMSI_GROOVY`).
+- `SOM_OBTENER_PARAMETROS_TECNICOS` and `RESOURCE_INVENTORY_UPDATE` are **not created for real** in this plan — they stay design-only prototypes until real schema/domain/auth data exists (spec §9.2/§9.3). Tasks 1-2 below only cover the two actions with fully-confirmed real signatures (`RESERVAR_LINEA_GROOVY`, `ALTA_IMSI_GROOVY`).
 - Nothing in flow 64506's **existing** 23 steps is deleted, replaced, or reordered — only new steps are inserted, per the topology in the spec's §6.
-- The single-vs-double `¿Es Locución?` gate question (spec §9.1) must be resolved (Task 0) before Task 6 (manual flow wiring), since it changes the step tree shape.
-- The reuse-vs-new-Groovy question (spec §9.6) must be resolved (Task 0) before Tasks 4-5, since if the existing `OBTIENE_CM_IMSI_HRLUD`/`RESERVAR_LINEA_INVE` PROCEDURE actions are reused as-is, Tasks 4-5 are skipped entirely (nothing to create).
-- `get_action_parameters` (built and tested in `ros-ai-mcp`, not yet committed) is **not required** to be committed before this plan proceeds — it already works from source (`npm run build` output is what the running MCP process loads). Task 7 covers committing it, independent of the rest.
+- Task 0's two design questions (gate shape, reuse-vs-new-Groovy) are already resolved (see Task 0) — Tasks 1-4 below reflect those answers directly, no more conditionals.
+- `get_action_parameters` (built and tested in `ros-ai-mcp`, not yet committed) is **not required** to be committed before this plan proceeds — it already works from source (`npm run build` output is what the running MCP process loads). Task 6 covers committing it, independent of the rest.
 
 ---
 
-## Task 0: Resolve the two open design questions before touching ROS
+## Task 0: Resolve the two open design questions before touching ROS — DONE (2026-09-21)
 
-**Files:** none — this is a conversation/decision checkpoint, not a code or ROS-write task.
+**Resolved:**
+1. Create the new Groovy actions (`ALTA_IMSI_GROOVY`, `RESERVAR_LINEA_GROOVY`) — not a reuse of the existing PROCEDURE actions. Tasks 1-2 proceed unconditionally.
+2. Two separate `¿Es Locución?` gates, preserving the Excel's literal order (DATOS SOM before InstantLink, INVENTARIO after) — not the single-gate version.
 
-- [ ] **Step 1: Ask the user directly, one at a time, and record the answers**
-  1. "¿Reusamos las Actions PROCEDURE existentes (`OBTIENE_CM_IMSI_HRLUD` #86538, `RESERVAR_LINEA_INVE` #88138) tal cual en el flujo, o creamos las versiones Groovy nuevas (`ALTA_IMSI_GROOVY`, `RESERVAR_LINEA_GROOVY`) diseñadas en la spec?"
-  2. "Para DATOS SOM/INVENTARIO en la rama no-prepago: ¿un solo gate `¿Es Locución?` antes de InstantLink (como quedó en la spec), o dos gates separados preservando el orden literal del Excel (INVENTARIO después de INSTANT LINK)?"
-- [ ] **Step 2: Update the spec file's §9 open-questions section** to mark these two as resolved, with the answer, before proceeding to Task 1.
+Both recorded in the spec's §6/§9 (updated in place, same commit history).
 
 ---
 
-## Task 1: Create `RESERVAR_LINEA_GROOVY` (only if Task 0.1 chose "new Groovy")
-
-**Depends on:** Task 0 (skip this task entirely if Task 0.1 chose "reuse existing").
+## Task 1: Create `RESERVAR_LINEA_GROOVY`
 
 **Tool:** `save_action` (actionId: none — create mode)
 
@@ -66,9 +62,7 @@ Then call `get_action_command` on the new `actionId` and diff it against the spe
 
 ---
 
-## Task 2: Create `ALTA_IMSI_GROOVY` (only if Task 0.1 chose "new Groovy")
-
-**Depends on:** Task 0 (skip if "reuse existing").
+## Task 2: Create `ALTA_IMSI_GROOVY`
 
 Identical shape to Task 1, using the actionCode `ALTA_IMSI_GROOVY`, `actionDes: "Alta IMSI (Groovy)"`, and the full Groovy body from spec §7.2. Follow the same 4 steps (preview → user approval → confirm → verify via `get_action_command`).
 
@@ -108,9 +102,32 @@ Re-run with `confirm: true`.
 
 Call `get_flow_steps(64506)` right before starting the manual edit (not relying on this session's earlier read) — confirm no one else changed the flow in the meantime, and get the exact current `stepId`s to anchor the new nodes onto.
 
-- [ ] **Step 2: Give the user (or whoever does the manual edit) the exact checklist**, derived from spec §6's topology (final shape depends on Task 0.2's answer):
+- [ ] **Step 2: Follow this exact checklist** (final shape per spec §6, post-Task 0):
 
-For each new node, specify: which existing step it attaches after, the exact `actionCode` (for the two new/reused actions) or `decisionCriteria` (for the two new `INLINEDEC` nodes: `tipoAlta=="POSTPAGO"` and `tipoAlta=="LOCUCION"`), and which existing downstream step it should reconnect to. Do not improvise field names not already confirmed in the spec.
+**Rama Y (Prepago puro, hoy termina en `ES` tras la Notificación) — insertar, en orden:**
+  1. Action `ALTA_IMSI_GROOVY` (nueva) — insertar como el primer paso de la rama, antes de lo que hoy es el primer `INFLOW` a `INSTANTLINK_BSCS9`.
+  2. Action `SOM_OBTENER_PARAMETROS_TECNICOS` (prototipo — **no crear/wirear todavía**, ver Deferred) — se saltea esta inserción hasta que el prototipo tenga datos reales.
+  3. (sin cambios) `INFLOW → INSTANTLINK_BSCS9 → OUTFLOW`
+  4. Action `RESOURCE_INVENTORY_UPDATE` (prototipo — **no crear/wirear todavía**, ver Deferred) — se saltea igual que el punto 2.
+  5. (sin cambios) `INFLOW → SERVICE_ORDERING_PROVISIONING_NOTIF → OUTFLOW → ES`
+
+  *(Nota: con SOM/Inventario diferidos, lo único que se agrega realmente a la rama Y en esta pasada es `ALTA_IMSI_GROOVY` al principio.)*
+
+**Rama N (Postpago/Portada/Locución, después del nodo `CS?` existente, paso 9):**
+  1. `INLINEDEC "¿Es Postpago?"` — `decisionCriteria: tipoAlta=="POSTPAGO"`
+     - Rama Y: Action `RESERVAR_LINEA_GROOVY` (nueva)
+     - Rama N: nada (converge directo)
+  2. Action `ALTA_IMSI_GROOVY` (la misma reutilizada de la rama Y, o una segunda inserción del mismo `actionCode` — confirmar en masros-gui si el editor permite reusar el mismo actionId en dos steps distintos del mismo flujo antes de asumirlo)
+  3. `INLINEDEC "¿Es Locución?"` (gate 1) — `decisionCriteria: tipoAlta=="LOCUCION"`
+     - Rama Y: nada (salta DATOS SOM)
+     - Rama N: Action `SOM_OBTENER_PARAMETROS_TECNICOS` (prototipo — **diferir**, ver Deferred)
+  4. (sin cambios) `INLINEDEC "IL?"` existente (paso 18) → `INSTANTLINK_BSCS9` si Y
+  5. `INLINEDEC "¿Es Locución?"` (gate 2) — mismo criterio que el gate 1
+     - Rama Y: nada (salta INVENTARIO)
+     - Rama N: Action `RESOURCE_INVENTORY_UPDATE` (prototipo — **diferir**, ver Deferred)
+  6. (sin cambios) `INFLOW → SERVICE_ORDERING_PROVISIONING_NOTIF → OUTFLOW → ES` existente (paso 21 en adelante)
+
+**Con SOM/Inventario diferidos, el alcance real de esta pasada de Task 4 es:** agregar `ALTA_IMSI_GROOVY` a ambas ramas, agregar el gate `¿Es Postpago?` + `RESERVAR_LINEA_GROOVY` a la rama N, y dejar los 2 gates `¿Es Locución?` creados pero con su rama N vacía (sin acción todavía) hasta que SOM/Inventario se implementen de verdad — no dejar el gate sin crear, para no tener que re-tocar el árbol dos veces.
 
 - [ ] **Step 3: After the manual edit, read it back**
 
