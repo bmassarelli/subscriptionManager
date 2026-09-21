@@ -28,7 +28,7 @@ Both recorded in the spec's §6/§9 (updated in place, same commit history).
 
 ---
 
-## Task 1: Create `RESERVAR_LINEA_GROOVY`
+## Task 1: Create `RESERVAR_LINEA_GROOVY` — DONE (actionId **90838**, version 1)
 
 **Tool:** `save_action` (actionId: none — create mode)
 
@@ -62,13 +62,13 @@ Then call `get_action_command` on the new `actionId` and diff it against the spe
 
 ---
 
-## Task 2: Create `ALTA_IMSI_GROOVY`
+## Task 2: Create `ALTA_IMSI_GROOVY` — DONE (actionId **90839**, version 1)
 
 Identical shape to Task 1, using the actionCode `ALTA_IMSI_GROOVY`, `actionDes: "Alta IMSI (Groovy)"`, and the full Groovy body from spec §7.2. Follow the same 4 steps (preview → user approval → confirm → verify via `get_action_command`).
 
 ---
 
-## Task 3: Update the validation action (90333) with the new `tipoAlta`/`SYSTEMCS` logic
+## Task 3: Update the validation action (90333) with the new `tipoAlta`/`SYSTEMCS` logic — DONE (version 5 → 6)
 
 **Tool:** `save_action` (actionId: 90333 — update mode)
 
