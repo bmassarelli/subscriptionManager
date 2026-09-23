@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   RosAuthError,
   RosError,
+  RosInvalidRequestError,
   RosNotFoundError,
   RosServerError,
   RosTimeoutError,
@@ -28,6 +29,10 @@ describe('RosError hierarchy', () => {
 
   it('RosTimeoutError is a RosError', () => {
     expect(new RosTimeoutError('timed out')).toBeInstanceOf(RosError);
+  });
+
+  it('RosInvalidRequestError is a RosError', () => {
+    expect(new RosInvalidRequestError('bad input')).toBeInstanceOf(RosError);
   });
 
   it('RosUnexpectedResponseError carries the raw response body', () => {

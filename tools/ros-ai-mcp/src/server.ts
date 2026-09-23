@@ -175,7 +175,11 @@ export function registerTools(server: McpServerLike, client: RosClientLike, opti
 
   server.tool(
     'search_ros_items',
-    'Search ROS items by flow, status, action, customer, error code, and other criteria.',
+    'Search ROS items by flow, status, action, customer, error code, and other criteria. ' +
+      'To search completed/historical items, pass searchHistory:true — this requires EITHER at least one of ' +
+      'customerId, contractId, externalId, orderno, messageId, OR both statusStartDate and statusEndDate ' +
+      '("YYYY/MM/DD HH:mm:ss", max ~31 day span); flowId/statusId/actionId/step alone are never enough for a ' +
+      'history search in ROS.',
     {
       flowId: z.number().optional(),
       statusId: z.number().optional(),
@@ -194,6 +198,8 @@ export function registerTools(server: McpServerLike, client: RosClientLike, opti
       finalExecutionDate: z.string().optional(),
       startDate: z.string().optional(),
       endDate: z.string().optional(),
+      statusStartDate: z.string().optional(),
+      statusEndDate: z.string().optional(),
       searchHistory: z.boolean().optional(),
       searchInMemory: z.boolean().optional(),
       searchInRos: z.boolean().optional(),

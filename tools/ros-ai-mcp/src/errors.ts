@@ -17,6 +17,8 @@ export class RosServerError extends RosError {
 
 export class RosTimeoutError extends RosError {}
 
+export class RosInvalidRequestError extends RosError {}
+
 export class RosUnexpectedResponseError extends RosError {
   constructor(message: string, public readonly body: string, cause?: unknown) {
     super(message, cause);
