@@ -23,9 +23,14 @@ public class SubscriptionLifecycleController {
         this.service = service;
     }
 
-    @PostMapping("/subscriptions/{id}/actions")
-    public LifecycleActionResultDTO executeAction(@PathVariable Long id, @RequestBody LifecycleActionRequestDTO request) {
-        return service.execute(id, request.getType(), request.getData());
+    @PostMapping("/subscriptions/{id}/product-actions")
+    public LifecycleActionResultDTO executeProductAction(@PathVariable Long id, @RequestBody LifecycleActionRequestDTO request) {
+        return service.executeProductAction(id, request.getType(), request.getData());
+    }
+
+    @PostMapping("/subscriptions/{id}/service-actions")
+    public LifecycleActionResultDTO executeServiceAction(@PathVariable Long id, @RequestBody LifecycleActionRequestDTO request) {
+        return service.executeServiceAction(id, request.getType(), request.getData());
     }
 
     @GetMapping("/subscriptions/{id}/operations")

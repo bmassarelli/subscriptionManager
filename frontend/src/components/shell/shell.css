@@ -1,0 +1,110 @@
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-shell__body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.app-shell__main {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ---------- Topbar ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--shell-topbar-height);
+  padding: 0 20px;
+  background: var(--color-graphite);
+  border-bottom: 1px solid var(--color-graphite-soft);
+  flex: 0 0 auto;
+}
+.topbar__mark {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-signal);
+  box-shadow: 0 0 0 3px rgba(20, 108, 105, 0.28);
+  flex: 0 0 auto;
+}
+.topbar__brand {
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--color-text-inverse);
+  letter-spacing: 0.01em;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: var(--shell-sidebar-width);
+  flex: 0 0 auto;
+  background: var(--color-graphite);
+  padding: 12px 8px;
+  gap: 2px;
+  border-right: 1px solid var(--color-graphite-soft);
+}
+
+.sidebar__item {
+  appearance: none;
+  border: none;
+  border-left: 3px solid transparent;
+  background: transparent;
+  color: rgba(246, 247, 249, 0.72);
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.sidebar__item:hover {
+  background: rgba(246, 247, 249, 0.07);
+  color: var(--color-text-inverse);
+}
+.sidebar__item--active {
+  background: rgba(20, 108, 105, 0.22);
+  border-left-color: var(--color-signal);
+  color: var(--color-text-inverse);
+  font-weight: 600;
+}
+.sidebar__item:focus-visible,
+.topbar__brand:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
+}
+
+/* ---------- Responsive: sidebar becomes a horizontal strip ---------- */
+@media (max-width: 860px) {
+  .app-shell__body {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--color-graphite-soft);
+    padding: 6px 8px;
+  }
+  .sidebar__item {
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+  }
+  .sidebar__item--active {
+    border-left-color: transparent;
+    border-bottom-color: var(--color-signal);
+  }
+}

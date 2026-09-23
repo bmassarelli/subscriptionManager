@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ALL_STATUSES } from './constants';
 import { applyFilters, applySort, paginate } from './utils/filterSort';
-import Navbar from './components/Navbar';
-import Sidebar from './components/Sidebar';
+import { apiFetch } from './api';
+import AppShell from './components/shell/AppShell';
 import FilterSidebar from './components/FilterSidebar';
 import SubscriptionTable from './components/SubscriptionTable';
 import ClientsModule from './components/ClientsModule';
@@ -10,6 +10,9 @@ import OperationsModule from './components/OperationsModule';
 import DashboardModule from './components/DashboardModule';
 import AddSubscriptionForm from './components/AddSubscriptionForm';
 import SubscriptionDetail from './components/SubscriptionDetail';
+import LoginScreen from './components/LoginScreen';
+import LoadingState from './components/ui/LoadingState';
+import ErrorState from './components/ui/ErrorState';
 
 const INITIAL_FILTERS = {
   search: '',
@@ -22,7 +25,9 @@ const INITIAL_FILTERS = {
 const INITIAL_SORT = { column: 'entryDate', direction: 'desc' };
 
 export default function App() {
-  const [activeModule, setActiveModule] = useState('subscriptions');
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
+  const [activeModule, setActiveModule] = useState('dashboard');
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -35,7 +40,7 @@ export default function App() {
 
   function loadSubscriptions() {
     setLoading(true);
-    return fetch('http://localhost:8080/api/subscriptions')
+    return apiFetch('/api/subscriptions')
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch subscriptions');
         return res.json();
@@ -49,8 +54,26 @@ export default function App() {
   }
 
   useEffect(() => {
-    loadSubscriptions();
+    apiFetch('/api/auth/me')
+      .then(res => {
+        setAuthenticated(res.ok);
+      })
+      .finally(() => setAuthChecked(true));
   }, []);
+
+  useEffect(() => {
+    function handleUnauthorized() {
+      setAuthenticated(false);
+    }
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+  }, []);
+
+  useEffect(() => {
+    if (authenticated) {
+      loadSubscriptions();
+    }
+  }, [authenticated]);
 
   const platforms = useMemo(
     () => [...new Set(data.map(d => d.platform))].sort(),
@@ -80,30 +103,19 @@ export default function App() {
   }
 
   function renderSubscriptionsModule() {
-    if (loading) return (
-      <div className="d-flex justify-content-center align-items-center flex-grow-1">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
-      </div>
-    );
-
-    if (error) return (
-      <div className="d-flex justify-content-center align-items-center flex-grow-1">
-        <div className="alert alert-danger">{error}</div>
-      </div>
-    );
+    if (loading) return <LoadingState />;
+    if (error) return <ErrorState message={error} />;
 
     return (
-      <>
+      <div className="split-layout">
         <FilterSidebar
           filters={filters}
           platforms={platforms}
           onApply={handleApply}
           onClear={handleClear}
         />
-        <div className="d-flex flex-column flex-grow-1">
-          <div className="d-flex justify-content-end p-2 border-bottom bg-light">
+        <div className="split-layout__content">
+          <div className="toolbar">
             <button
               type="button"
               className="btn btn-primary btn-sm"
@@ -113,7 +125,7 @@ export default function App() {
             </button>
           </div>
           {showAddSubscription && (
-            <div className="border-bottom bg-light p-3">
+            <div className="toolbar--panel">
               <AddSubscriptionForm onCreated={loadSubscriptions} />
             </div>
           )}
@@ -129,36 +141,38 @@ export default function App() {
             onView={setSelectedSubscriptionId}
           />
         </div>
-      </>
+      </div>
     );
   }
 
+  if (!authChecked) {
+    return <LoadingState />;
+  }
+
+  if (!authenticated) {
+    return <LoginScreen onLoggedIn={() => setAuthenticated(true)} />;
+  }
+
   return (
-    <div className="d-flex flex-column min-vh-100">
-      <Navbar />
-      <div className="d-flex flex-grow-1">
-        <Sidebar activeModule={activeModule} onSelect={setActiveModule} />
-        <div className="d-flex flex-grow-1">
-          {activeModule === 'subscriptions' && (
-            selectedSubscriptionId ? (
-              <SubscriptionDetail
-                subscriptionId={selectedSubscriptionId}
-                onBack={() => setSelectedSubscriptionId(null)}
-              />
-            ) : renderSubscriptionsModule()
-          )}
-          {activeModule === 'clients' && <ClientsModule />}
-          {activeModule === 'operations' && (
-            <OperationsModule
-              onViewSubscription={id => {
-                setSelectedSubscriptionId(id);
-                setActiveModule('subscriptions');
-              }}
-            />
-          )}
-          {activeModule === 'dashboard' && <DashboardModule />}
-        </div>
-      </div>
-    </div>
+    <AppShell activeModule={activeModule} onSelectModule={setActiveModule} onLoggedOut={() => setAuthenticated(false)}>
+      {activeModule === 'subscriptions' && (
+        selectedSubscriptionId ? (
+          <SubscriptionDetail
+            subscriptionId={selectedSubscriptionId}
+            onBack={() => setSelectedSubscriptionId(null)}
+          />
+        ) : renderSubscriptionsModule()
+      )}
+      {activeModule === 'clients' && <ClientsModule />}
+      {activeModule === 'operations' && (
+        <OperationsModule
+          onViewSubscription={id => {
+            setSelectedSubscriptionId(id);
+            setActiveModule('subscriptions');
+          }}
+        />
+      )}
+      {activeModule === 'dashboard' && <DashboardModule />}
+    </AppShell>
   );
 }

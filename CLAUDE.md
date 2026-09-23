@@ -13,50 +13,74 @@ subscriptionManager/
 │   │                                   # (CLIENT, SUBSCRIPTIONS, PLATFORM, PAYMENT_MODE)
 │   ├── 002-lifecycle-actions.sql      # lifecycle-mutable columns + OPERATIONS table
 │   ├── 003-hardening.sql              # PRE_SUSPEND_STATUS + CLIENT email/msisdn uniqueness
-│   └── 004-resources.sql              # RESOURCES table + SEQ_RESOURCE_ID + trigger
+│   ├── 004-resources.sql              # RESOURCES table + SEQ_RESOURCE_ID + trigger
+│   ├── 005-product-offering.sql       # PRODUCT_OFFERING table + SUBSCRIPTIONS FK, drops PO
+│   ├── 006-service.sql                # SERVICE table (PLATFORM/MSISDN/SIM_ICCID moved off
+│   │                                   # SUBSCRIPTIONS); RESOURCES FK swapped to SERVICE_ID
+│   └── 007-app-user.sql               # APP_USER table (login gate) + seeded local credential —
+│                                       # see "Authentication" below
 ├── backend/                            # Spring Boot 3, Java 21, Maven
 │   └── src/main/
 │       ├── java/com/subscriptionmanager/
 │       │   ├── SubscriptionManagerApplication.java
-│       │   ├── config/CorsConfig.java
+│       │   ├── config/SecurityConfig.java              # session-cookie login gate: filter chain,
+│       │   │                                            # CORS w/ credentials, 401 entry point — see
+│       │   │                                            # "Authentication" below
 │       │   ├── controller/
-│       │   │   ├── CatalogController.java             # GET /api/platforms, /api/payment-modes
-│       │   │   ├── ClientController.java              # GET/POST /api/clients
-│       │   │   ├── SubscriptionController.java         # GET/POST /api/subscriptions
+│       │   │   ├── AuthController.java                 # POST /api/auth/login, /api/auth/logout,
+│       │   │   │                                         # GET /api/auth/me
+│       │   │   ├── CatalogController.java             # GET /api/platforms, /api/payment-modes,
+│       │   │   │                                         # /api/product-offerings
+│       │   │   ├── ClientController.java              # GET/POST /api/clients, GET/PUT/DELETE
+│       │   │   │                                         # /api/clients/{id}
+│       │   │   ├── SubscriptionController.java         # GET/POST /api/subscriptions, PUT
+│       │   │   │                                         # /api/subscriptions/{id} (contract/amount only)
 │       │   │   ├── SubscriptionLifecycleController.java # POST lifecycle actions, GET operations,
 │       │   │   │                                         # GET /api/operations (all), subscription detail
 │       │   │   ├── ResourceController.java             # GET/POST/DELETE /api/subscriptions/{id}/resources
 │       │   │   ├── DashboardController.java            # GET /api/dashboard/summary
-│       │   │   └── GlobalExceptionHandler.java         # validation + invalid-reference/not-found -> 400/404
+│       │   │   └── GlobalExceptionHandler.java         # validation + invalid-reference/not-found -> 400/404,
+│       │   │                                            # AuthenticationException -> 401
 │       │   ├── dto/
 │       │   │   ├── ClientRequestDTO.java / ClientResponseDTO.java
-│       │   │   ├── SubscriptionDTO.java / SubscriptionRequestDTO.java / SubscriptionDetailDTO.java
-│       │   │   ├── PlatformDTO.java / PaymentModeDTO.java
+│       │   │   ├── SubscriptionDTO.java / SubscriptionRequestDTO.java / SubscriptionDetailDTO.java /
+│       │   │   │   SubscriptionUpdateDTO.java
+│       │   │   ├── PlatformDTO.java / PaymentModeDTO.java / ProductOfferingDTO.java
 │       │   │   ├── LifecycleActionRequestDTO.java / LifecycleActionResultDTO.java / OperationDTO.java
 │       │   │   ├── ResourceDTO.java / ResourceRequestDTO.java
-│       │   │   └── DashboardSummaryDTO.java
+│       │   │   ├── DashboardSummaryDTO.java
+│       │   │   └── LoginRequestDTO.java
 │       │   ├── entity/
 │       │   │   ├── Client.java / Subscription.java (full column mapping incl. PRE_SUSPEND_STATUS)
-│       │   │   ├── Platform.java / PaymentMode.java
+│       │   │   ├── Platform.java / PaymentMode.java / ProductOffering.java
+│       │   │   ├── Service.java (PLATFORM/MSISDN/SIM_ICCID, 1:1 with Subscription)
 │       │   │   ├── Operation.java (lifecycle audit trail)
-│       │   │   └── Resource.java (IP/VLAN/CPE/PORT/EQUIPMENT/NODE)
+│       │   │   ├── Resource.java (IP/VLAN/CPE/PORT/EQUIPMENT/NODE; FKs to Service)
+│       │   │   └── AppUser.java (login credentials — USERNAME/PASSWORD_HASH)
 │       │   ├── repository/
 │       │   │   ├── ClientRepository.java / SubscriptionRepository.java
-│       │   │   ├── PlatformRepository.java / PaymentModeRepository.java
+│       │   │   ├── PlatformRepository.java / PaymentModeRepository.java / ProductOfferingRepository.java
 │       │   │   ├── OperationRepository.java / ResourceRepository.java
+│       │   │   ├── AppUserRepository.java
 │       │   ├── service/
 │       │   │   ├── ClientService.java / SubscriptionService.java
 │       │   │   ├── DashboardService.java              # aggregates counts/status breakdown/recent ops
 │       │   │   ├── OperationMapper.java / OperationRecorder.java
+│       │   │   ├── AppUserDetailsService.java          # Spring Security UserDetailsService, backed
+│       │   │   │                                        # by AppUserRepository
 │       │   │   ├── InvalidClientReferenceException.java, InvalidPlatformException.java,
-│       │   │   │   InvalidPaymentModeException.java, DuplicateClientFieldException.java
-│       │   │   ├── lifecycle/                         # SUSPEND/RECONNECT/CANCEL/CHANGE_PLAN/
-│       │   │   │   ├── LifecycleAction.java, LifecycleActionRegistry.java,   # CHANGE_MSISDN/CHANGE_SIM
-│       │   │   │   ├── LifecycleActionService.java     # actions, one per class implementing LifecycleAction
-│       │   │   │   ├── SuspendAction.java, ReconnectAction.java, CancelAction.java,
+│       │   │   │   InvalidPaymentModeException.java, InvalidProductOfferingException.java,
+│       │   │   │   DuplicateClientFieldException.java, ClientNotFoundException.java,
+│       │   │   │   ClientHasSubscriptionsException.java
+│       │   │   ├── lifecycle/                         # SUSPEND/RECONNECT/CANCEL/MARK_EXPIRED/
+│       │   │   │   ├── LifecycleAction.java, LifecycleActionRegistry.java,   # PAYMENT_RECEIVED/CHANGE_PLAN/
+│       │   │   │   ├── LifecycleActionService.java     # CHANGE_MSISDN/CHANGE_SIM — actions, one per
+│       │   │   │   ├── SuspendAction.java, ReconnectAction.java, CancelAction.java,  # class implementing LifecycleAction
+│       │   │   │   ├── MarkExpiredAction.java, PaymentReceivedAction.java,
 │       │   │   │   ├── ChangePlanAction.java, ChangeMsisdnAction.java, ChangeSimAction.java
 │       │   │   │   └── SubscriptionNotFoundException.java, InvalidLifecycleTransitionException.java,
-│       │   │   │       LifecycleActionValidationException.java, UnknownLifecycleActionException.java
+│       │   │   │       LifecycleActionValidationException.java, UnknownLifecycleActionException.java,
+│       │   │   │       WrongLifecycleDomainException.java
 │       │   │   └── resource/
 │       │   │       ├── ResourceService.java            # plain CRUD, not an auditable lifecycle action
 │       │   │       └── InvalidResourceTypeException.java, ResourceNotFoundException.java
@@ -64,10 +88,17 @@ subscriptionManager/
 │           └── application.properties  # ⚠ local only — never commit (see below)
 ├── frontend/                          # React app (Create React App + Bootstrap 5)
 │   └── src/
-│       ├── App.jsx                    # Root: activeModule, subscription list/filter/sort/page state
-│       ├── constants.js               # STATUS_LABELS, STATUS_BADGE_CLASSES, ALL_STATUSES (6-status model)
-│       ├── utils/filterSort.js        # Pure functions: applyFilters, applySort, paginate
+│       ├── App.jsx                    # Root: auth gate (LoginScreen vs app shell), activeModule,
+│       │                              # subscription list/filter/sort/page state
+│       ├── api.js                     # apiFetch — centralized fetch wrapper (credentials: 'include',
+│       │                              # dispatches 'auth:unauthorized' on 401)
+│       ├── constants.js               # STATUS_LABELS, STATUS_BADGE_CLASSES, ALL_STATUSES (6-status model);
+│       │                              # ALL_OPERATION_TYPES, OPERATION_TYPE_LABELS, ALL_OPERATION_STATUSES,
+│       │                              # OPERATION_STATUS_LABELS
+│       ├── utils/filterSort.js        # Pure functions: applyFilters, applySort, paginate, applyClientSearch,
+│       │                              # applyOperationFilters
 │       └── components/
+│           ├── LoginScreen.jsx        # Username/password form, shown instead of the app when unauthenticated
 │           ├── Navbar.jsx             # Brand bar only
 │           ├── Sidebar.jsx            # Left module menu (Subscriptions, Clients, Operations, Dashboard)
 │           ├── FilterSidebar.jsx
@@ -122,7 +153,7 @@ server.port=8080
 cd frontend
 npm install
 npm start        # http://localhost:3000
-npm test         # run tests (61 tests, all passing)
+npm test         # run tests (105 tests, all passing)
 npm run build    # production build
 ```
 
@@ -130,20 +161,53 @@ The frontend is connected to the real backend — `App.jsx` fetches
 `http://localhost:8080/api/subscriptions` on load. There is no mock data in the
 codebase anymore.
 
+## Authentication
+
+Every `/api/**` endpoint requires an authenticated session — except `POST
+/api/auth/login`, which is the only open endpoint. Session state is a plain
+HTTP session cookie (`JSESSIONID`); there is no token/JWT involved. See
+`config/SecurityConfig.java` for the filter chain and `controller/AuthController.java`
+for the endpoints:
+
+- `POST /api/auth/login` — body `{"username": "...", "password": "..."}`,
+  returns `{"username": "..."}` on success and sets the session cookie
+- `POST /api/auth/logout` — invalidates the session
+- `GET /api/auth/me` — returns `{"username": "..."}` for the current session
+
+A request with no valid session gets `401` with body `{"error": "..."}` from
+every protected endpoint (via `SecurityConfig`'s entry point for a missing
+session, or `GlobalExceptionHandler`'s `AuthenticationException` handler for a
+failed login) — never a raw `403` or an empty body.
+
+Seeded local credential (from `database/007-app-user.sql`, applied to the
+training DB): `username: ops`, `password: Ops#Training2026`. Fine to note here
+in plaintext for the local training environment — this project already commits
+its real Oracle DB password in `database/001-baseline.sql`, so this is
+consistent with that established convention, not a new exposure.
+
 ## Database
 
-Oracle DB, schema: `SUBSCRIPTION_MANAGER`. All four migrations (`001`–`004`) are
-applied to the live training DB. Main tables:
+Oracle DB, schema: `SUBSCRIPTION_MANAGER`. Migrations `001`–`006` are applied to the live
+training DB; `007-app-user.sql` is committed but not yet applied (the training DB was
+unreachable for the entire session that added it — apply it before relying on login working
+end-to-end). Main tables:
 
 - `CLIENT` — CLIENT_ID, NAME, LAST_NAME, EMAIL, MSISDN (EMAIL and MSISDN are
   unique — `UQ_CLIENT_EMAIL`, `UQ_CLIENT_MSISDN`, added in `003-hardening.sql`)
-- `SUBSCRIPTIONS` — ID, CLIENT_ID, PLATFORM, CONTRACT, STATUS, AMOUNT, dates,
-  MSISDN, SIM_ICCID, PRE_SUSPEND_STATUS (remembers status before a suspend, for
-  Reconnect)
+- `SUBSCRIPTIONS` — ID, CLIENT_ID, CONTRACT, STATUS, AMOUNT, dates,
+  PRE_SUSPEND_STATUS (remembers status before a suspend, for
+  Reconnect), PRODUCT_OFFERING_ID (FK to `PRODUCT_OFFERING`, added in
+  `005-product-offering.sql`, replacing the old unused `PO` free-text column)
+  — PLATFORM/MSISDN/SIM_ICCID moved off this table in `006-service.sql`, see `SERVICE` below
 - `OPERATIONS` — lifecycle-action audit trail (added in `002-lifecycle-actions.sql`)
-- `RESOURCES` — ID, SUBSCRIPTION_ID, RESOURCE_TYPE (`IP`/`VLAN`/`CPE`/`PORT`/
-  `EQUIPMENT`/`NODE`), VALUE (added in `004-resources.sql`; MSISDN/SIM_ICCID stay
-  dedicated `SUBSCRIPTIONS` columns rather than living here)
+- `RESOURCES` — ID, SERVICE_ID, RESOURCE_TYPE (`IP`/`VLAN`/`CPE`/`PORT`/
+  `EQUIPMENT`/`NODE`), VALUE (added in `004-resources.sql`; FK swapped from
+  SUBSCRIPTION_ID to SERVICE_ID in `006-service.sql`)
+- `PRODUCT_OFFERING` — ID, NAME (catalog for `po`, added in `005-product-offering.sql`)
+- `SERVICE` — ID, SUBSCRIPTION_ID (FK to `SUBSCRIPTIONS`, unique — 1:1), PLATFORM,
+  MSISDN, SIM_ICCID (added in `006-service.sql`, extracted off `SUBSCRIPTIONS`)
+- `APP_USER` — ID, USERNAME (unique), PASSWORD_HASH (BCrypt; added in `007-app-user.sql`,
+  backs the login gate — see Authentication below)
 
 Full column reference is in `README.md`.
 
@@ -154,7 +218,7 @@ Full column reference is in `README.md`.
 | AC   | Active     | Subscription is active and being charged                        |
 | TR   | Trial      | Within trial period — no charges yet                            |
 | SU   | Suspended  | Temporarily suspended — can be reconnected                      |
-| EX   | Expired    | Payment failed (insufficient balance or any other reason)       |
+| EX   | Expired    | Payment failed (insufficient balance or any other reason); also reachable today via the manual `Mark Expired` action, standing in for the unbuilt charging pipeline |
 | CA   | Cancelled  | Explicitly cancelled by the client — `CANCEL_DATE` is set       |
 | ER   | Error      | Processing error during charging or activation                  |
 
@@ -165,27 +229,40 @@ This is the single, enforced status model — `frontend/src/constants.js` and th
 backend agree on it. New subscriptions are created in `TR`. `ER` is reserved for a
 future charging/activation pipeline; nothing in the current codebase writes it.
 Lifecycle transitions between these statuses (Suspend, Reconnect, Cancel, Change
-Plan, Change MSISDN, Change SIM) are implemented via a single generic action
-endpoint — see `subscription-lifecycle` under Architecture Notes below.
+Plan, Change MSISDN, Change SIM) are implemented via two domain-specific action
+endpoints — see `subscription-lifecycle` under Architecture Notes below.
 
 ## Architecture Notes
 
 ### Frontend
-- All filter/sort/pagination state lives in `App.jsx`
+- **Subscriptions**: filter/sort/pagination state lives in `App.jsx` (must survive navigating into and back out of `SubscriptionDetail`)
+- **Clients**: filter state lives locally in `ClientsModule.jsx` (via `useState`)
+- **Operations**: filter state lives locally in `OperationsModule.jsx` (via `useState`)
 - `FilterSidebar` holds local draft state (pre-Apply form values) — not business state
-- `applyFilters`, `applySort`, `paginate` are pure functions in `utils/filterSort.js`
+- Pure filter helpers: `applyFilters`, `applySort`, `paginate` (Subscriptions); `applyClientSearch` (Clients); `applyOperationFilters` (Operations) in `utils/filterSort.js`
 - Date fields use ISO format `YYYY-MM-DD` — string comparison works for sorting/filtering
 
 ### Backend (Spring Boot)
 - `GET/POST /api/subscriptions`, `GET /api/subscriptions/{id}` (full detail),
-  `GET/POST /api/clients`, `GET /api/platforms`, `GET /api/payment-modes` — no
-  `PUT`/`DELETE` for clients or subscriptions themselves yet (see "What's Not
-  Built Yet")
+  `PUT /api/subscriptions/{id}` (edit `contract`/`amount` only — no `Operation`
+  recorded, unlike the lifecycle actions), `GET/POST /api/clients`,
+  `GET /api/clients/{id}`, `PUT /api/clients/{id}`, `DELETE /api/clients/{id}`
+  (`409` if the client still has subscriptions, via `ClientHasSubscriptionsException`),
+  `GET /api/platforms`, `GET /api/payment-modes`
 - Validation errors and invalid-reference/not-found errors (unknown `clientId`/
-  `platform`/`paymentModeId`/subscription id/resource id) return `400`/`404` with
-  a field→message body via `GlobalExceptionHandler` — never a raw `500`
+  `platform`/`paymentModeId`/`po`/subscription id/resource id) return `400`/`404`
+  with a field→message body via `GlobalExceptionHandler` — never a raw `500`
 - `platform` is validated against the `PLATFORM` catalog by name (no DB-level FK);
-  `paymentModeId` is a real FK, validated against `PAYMENT_MODE`
+  `paymentModeId` and `po` (Product Offering) are both real FKs, validated
+  against `PAYMENT_MODE` and `PRODUCT_OFFERING` respectively — `po` is accepted
+  and returned as a name string on the wire (matching the documented external
+  contract) but resolved/stored as `PRODUCT_OFFERING_ID` internally
+- `platform` and `productOffering`/`po` are distinct, non-overlapping concepts —
+  `platform` is *how* a subscription is technically realized (access + billing
+  engine), `po` is *what* was commercially sold (TMF620 ProductOffering); see the
+  class Javadoc on `Subscription.java` and
+  `docs/superpowers/specs/2026-08-20-tmforum-alignment-analysis.md` for the full
+  TM Forum alignment rationale
 - CORS configured to allow requests from `http://localhost:3000`
 - JPA with Oracle dialect — DDL auto is `none` (schema managed by SQL scripts).
   Entities generated via `@GeneratedValue(SEQUENCE)` mapped to the matching
@@ -195,17 +272,27 @@ endpoint — see `subscription-lifecycle` under Architecture Notes below.
 - `SubscriptionDTO` is a flat projection built from the JOIN; no lazy-loading issues
 
 #### Lifecycle actions (`subscription-lifecycle`, `subscription-detail`)
-- `SubscriptionLifecycleController` exposes one generic action endpoint (`type` +
-  action-specific payload) plus `GET /api/subscriptions/{id}` (detail),
+- `SubscriptionLifecycleController` exposes two domain-specific action endpoints
+  (`POST /api/subscriptions/{id}/product-actions` for `SUSPEND`/`RECONNECT`/
+  `CANCEL`/`MARK_EXPIRED`/`PAYMENT_RECEIVED`, `POST /api/subscriptions/{id}/service-actions`
+  for `CHANGE_PLAN`/`CHANGE_MSISDN`/`CHANGE_SIM`; each takes `type` + action-specific payload)
+  plus `GET /api/subscriptions/{id}` (detail),
   `GET /api/subscriptions/{id}/operations`, and `GET /api/operations` (all,
   cross-subscription, most recent first)
-- Every action (`SUSPEND`, `RECONNECT`, `CANCEL`, `CHANGE_PLAN`, `CHANGE_MSISDN`,
-  `CHANGE_SIM`) is a `LifecycleAction` implementation registered in
-  `LifecycleActionRegistry`, run through one pipeline in `LifecycleActionService`:
-  validate current status against the transition table, validate the action's
-  data, record an `Operation` (via `OperationRecorder`), apply the change
+- Every action (`SUSPEND`, `RECONNECT`, `CANCEL`, `MARK_EXPIRED`, `PAYMENT_RECEIVED`,
+  `CHANGE_PLAN`, `CHANGE_MSISDN`, `CHANGE_SIM`) is a `LifecycleAction` implementation
+  registered in `LifecycleActionRegistry`, run through one pipeline in
+  `LifecycleActionService`: validate current status against the transition table,
+  validate the action's data, record an `Operation` (via `OperationRecorder`), apply
+  the change
 - `Suspend` stashes the pre-suspend status in `PRE_SUSPEND_STATUS` so `Reconnect`
   can restore it
+- `MarkExpiredAction` (`AC`/`TR` → `EX`) and `PaymentReceivedAction` (`EX` → `AC`,
+  always to `AC`, never back to `TR`) are the app-local stand-in for the unbuilt
+  charging pipeline and the `README.md`-documented Payment Received flow — see
+  `docs/superpowers/specs/2026-08-27-payment-received-flow-design.md`. `MARK_EXPIRED`
+  is explicitly a manual substitute for a real charging failure, since no charging
+  engine exists to produce `EX` on its own.
 - `Operation` → `OperationDTO` mapping lives in the shared `OperationMapper`,
   reused by both the per-subscription operations list and the dashboard summary
 
@@ -214,10 +301,11 @@ endpoint — see `subscription-lifecycle` under Architecture Notes below.
   `/api/subscriptions/{id}/resources`), not a `LifecycleAction` — no `Operation`
   is recorded for assigning/removing a resource
 - Valid `resourceType`s: `IP`, `VLAN`, `CPE`, `PORT`, `EQUIPMENT`, `NODE`.
-  MSISDN/SIM ICCID intentionally stay on `SUBSCRIPTIONS` (owned by the
+  MSISDN/SIM ICCID intentionally stay dedicated columns on `SERVICE` (owned by the
   `CHANGE_MSISDN`/`CHANGE_SIM` lifecycle actions) rather than living in
   `RESOURCES` — see the resolved open question in
   `openspec/changes/archive/2026-08-17-subscription-resources-module/proposal.md`
+  (`Resource` FKs to `Service` — see `docs/superpowers/specs/2026-08-26-service-entity-design.md`)
 
 #### Operations & Dashboard modules (`subscription-operations`, `subscription-dashboard`)
 - `GET /api/operations` (all subscriptions) backs the Operations sidebar module;
@@ -245,11 +333,9 @@ endpoint — see `subscription-lifecycle` under Architecture Notes below.
 
 ## What's Not Built Yet
 
-- Edit / Delete for clients or subscriptions themselves (creation, listing, and
-  detail view exist; lifecycle actions and resource assignment exist; but there's
-  no way to edit or delete a `CLIENT` or `SUBSCRIPTIONS` row directly)
-- Authentication / authorization
-- Charging/billing, promotions, and payment-received reactivation
+- The periodic ROS Loader charging engine and promotions — `MARK_EXPIRED`/
+  `PAYMENT_RECEIVED` (see "Lifecycle actions" above) let the app demonstrate the
+  `EX ⇄ AC` cycle without a real charging pipeline behind it
 - Real integration with the ROS API or the API Gateway (this app is local-only —
   see `README.md`'s API section, which documents that *external* system's contract,
   not something implemented here)
@@ -259,6 +345,9 @@ The Telco-lifecycle roadmap (`subscription-foundation` → `subscription-lifecyc
 → `subscription-detail-view` → `subscription-operations-module` →
 `subscription-audit-history` → `subscription-resources-module` →
 `subscription-dashboard`) is complete and fully archived under
-`openspec/changes/archive/`; `openspec/changes/` itself has no active changes.
+`openspec/changes/archive/`. The most recently shipped change is
+`2026-08-25-add-client-subscription-crud-gaps` (client Edit/Delete, narrow
+subscription contract/amount Edit); `openspec/changes/` itself currently has
+no active changes.
 `openspec/specs/` holds the current-truth capability specs for everything listed
 above.

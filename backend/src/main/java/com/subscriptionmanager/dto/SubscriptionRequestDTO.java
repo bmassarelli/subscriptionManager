@@ -23,6 +23,8 @@ public class SubscriptionRequestDTO {
 
     private Long paymentModeId;
 
+    private String po;
+
     public Long getClientId() { return clientId; }
     public void setClientId(Long clientId) { this.clientId = clientId; }
 
@@ -37,4 +39,7 @@ public class SubscriptionRequestDTO {
 
     public Long getPaymentModeId() { return paymentModeId; }
     public void setPaymentModeId(Long paymentModeId) { this.paymentModeId = paymentModeId; }
+
+    public String getPo() { return po; }
+    public void setPo(String po) { this.po = po; }
 }

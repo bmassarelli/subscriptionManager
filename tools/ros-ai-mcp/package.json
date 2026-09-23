@@ -1,0 +1,28 @@
+{
+  "name": "ros-ai-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP server for ThinkSkink ROS (masros-gui) — read-only tools plus gated save_action and execute_flow write tools (off by default)",
+  "type": "module",
+  "engines": {
+    "node": ">=18.15.0"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "smoke": "tsx scripts/smoke.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "dotenv": "^16.4.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}

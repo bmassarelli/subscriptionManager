@@ -7,9 +7,11 @@ import java.util.List;
 
 public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
 
-    @Query("SELECT s FROM Subscription s JOIN FETCH s.client")
+    @Query("SELECT s FROM Subscription s JOIN FETCH s.client JOIN FETCH s.service")
     List<Subscription> findAllWithClient();
 
     @Query("SELECT s.status, COUNT(s) FROM Subscription s GROUP BY s.status")
     List<Object[]> countByStatus();
+
+    long countByClient_ClientId(Long clientId);
 }

@@ -8,6 +8,7 @@ import com.subscriptionmanager.entity.Platform;
 import com.subscriptionmanager.entity.Subscription;
 import com.subscriptionmanager.repository.OperationRepository;
 import com.subscriptionmanager.repository.PlatformRepository;
+import com.subscriptionmanager.repository.ResourceRepository;
 import com.subscriptionmanager.repository.SubscriptionRepository;
 import com.subscriptionmanager.service.OperationRecorder;
 import com.subscriptionmanager.service.SubscriptionService;
@@ -36,6 +37,7 @@ class LifecycleActionServiceTest {
     @Mock private OperationRepository operationRepository;
     @Mock private SubscriptionService subscriptionService;
     @Mock private PlatformRepository platformRepository;
+    @Mock private ResourceRepository resourceRepository;
 
     private LifecycleActionService service;
 
@@ -44,10 +46,12 @@ class LifecycleActionServiceTest {
         List<LifecycleAction> actions = List.of(
                 new SuspendAction(),
                 new ReconnectAction(),
-                new CancelAction(),
+                new CancelAction(resourceRepository),
                 new ChangePlanAction(platformRepository),
                 new ChangeMsisdnAction(),
-                new ChangeSimAction()
+                new ChangeSimAction(),
+                new MarkExpiredAction(),
+                new PaymentReceivedAction()
         );
         LifecycleActionRegistry registry = new LifecycleActionRegistry(actions);
         OperationRecorder operationRecorder = new OperationRecorder(operationRepository, new ObjectMapper());
@@ -57,11 +61,16 @@ class LifecycleActionServiceTest {
         lenient().when(subscriptionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(operationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(subscriptionService.toDTO(any())).thenReturn(null);
+        lenient().when(resourceRepository.deleteByService_Subscription_Id(any())).thenReturn(0L);
     }
 
     private Subscription buildSubscription(String status) {
         Client client = new Client(1L, "John", "Doe", "john@doe.com", "+11234567890");
-        return new Subscription(1L, client, "MOBILE_BSCS9", "CONTR_001", status, LocalDate.now(), new BigDecimal("10.00"));
+        Subscription subscription = new Subscription(1L, client, "CONTR_001", status, LocalDate.now(), new BigDecimal("10.00"));
+        com.subscriptionmanager.entity.Service service =
+                new com.subscriptionmanager.entity.Service(subscription, "MOBILE_BSCS9", null, null);
+        subscription.setService(service);
+        return subscription;
     }
 
     @Test
@@ -69,7 +78,7 @@ class LifecycleActionServiceTest {
         Subscription subscription = buildSubscription("AC");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
 
-        service.execute(1L, "SUSPEND", Map.of());
+        service.executeProductAction(1L, "SUSPEND", Map.of());
 
         assertEquals("SU", subscription.getStatus());
         ArgumentCaptor<Operation> captor = ArgumentCaptor.forClass(Operation.class);
@@ -83,7 +92,7 @@ class LifecycleActionServiceTest {
         Subscription subscription = buildSubscription("CA");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
 
-        assertThrows(InvalidLifecycleTransitionException.class, () -> service.execute(1L, "SUSPEND", Map.of()));
+        assertThrows(InvalidLifecycleTransitionException.class, () -> service.executeProductAction(1L, "SUSPEND", Map.of()));
         assertEquals("CA", subscription.getStatus());
         verify(operationRepository, never()).save(any());
     }
@@ -93,7 +102,7 @@ class LifecycleActionServiceTest {
         Subscription subscription = buildSubscription("SU");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
 
-        service.execute(1L, "RECONNECT", Map.of());
+        service.executeProductAction(1L, "RECONNECT", Map.of());
 
         assertEquals("AC", subscription.getStatus());
     }
@@ -103,11 +112,11 @@ class LifecycleActionServiceTest {
         Subscription subscription = buildSubscription("TR");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
 
-        service.execute(1L, "SUSPEND", Map.of());
+        service.executeProductAction(1L, "SUSPEND", Map.of());
         assertEquals("SU", subscription.getStatus());
         assertEquals("TR", subscription.getPreSuspendStatus());
 
-        service.execute(1L, "RECONNECT", Map.of());
+        service.executeProductAction(1L, "RECONNECT", Map.of());
 
         assertEquals("TR", subscription.getStatus());
         assertNull(subscription.getPreSuspendStatus());
@@ -118,7 +127,67 @@ class LifecycleActionServiceTest {
         Subscription subscription = buildSubscription("AC");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
 
-        assertThrows(InvalidLifecycleTransitionException.class, () -> service.execute(1L, "RECONNECT", Map.of()));
+        assertThrows(InvalidLifecycleTransitionException.class, () -> service.executeProductAction(1L, "RECONNECT", Map.of()));
+    }
+
+    @Test
+    void marksActiveSubscriptionExpired() {
+        Subscription subscription = buildSubscription("AC");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        service.executeProductAction(1L, "MARK_EXPIRED", Map.of());
+
+        assertEquals("EX", subscription.getStatus());
+        ArgumentCaptor<Operation> captor = ArgumentCaptor.forClass(Operation.class);
+        verify(operationRepository).save(captor.capture());
+        assertEquals("COMPLETED", captor.getValue().getStatus());
+        assertEquals("AC -> EX", captor.getValue().getDescription());
+    }
+
+    @Test
+    void marksTrialSubscriptionExpired() {
+        Subscription subscription = buildSubscription("TR");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        service.executeProductAction(1L, "MARK_EXPIRED", Map.of());
+
+        assertEquals("EX", subscription.getStatus());
+    }
+
+    @Test
+    void rejectsMarkExpiredOnIneligibleStatus() {
+        Subscription subscription = buildSubscription("SU");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        assertThrows(InvalidLifecycleTransitionException.class,
+                () -> service.executeProductAction(1L, "MARK_EXPIRED", Map.of()));
+        assertEquals("SU", subscription.getStatus());
+        verify(operationRepository, never()).save(any());
+    }
+
+    @Test
+    void reactivatesExpiredSubscriptionOnPaymentReceived() {
+        Subscription subscription = buildSubscription("EX");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        service.executeProductAction(1L, "PAYMENT_RECEIVED", Map.of());
+
+        assertEquals("AC", subscription.getStatus());
+        ArgumentCaptor<Operation> captor = ArgumentCaptor.forClass(Operation.class);
+        verify(operationRepository).save(captor.capture());
+        assertEquals("COMPLETED", captor.getValue().getStatus());
+        assertEquals("EX -> AC", captor.getValue().getDescription());
+    }
+
+    @Test
+    void rejectsPaymentReceivedOnIneligibleStatus() {
+        Subscription subscription = buildSubscription("AC");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        assertThrows(InvalidLifecycleTransitionException.class,
+                () -> service.executeProductAction(1L, "PAYMENT_RECEIVED", Map.of()));
+        assertEquals("AC", subscription.getStatus());
+        verify(operationRepository, never()).save(any());
     }
 
     @Test
@@ -126,7 +195,7 @@ class LifecycleActionServiceTest {
         Subscription subscription = buildSubscription("AC");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
 
-        service.execute(1L, "CANCEL", Map.of("immediate", true));
+        service.executeProductAction(1L, "CANCEL", Map.of("immediate", true));
 
         ArgumentCaptor<Operation> captor = ArgumentCaptor.forClass(Operation.class);
         verify(operationRepository).save(captor.capture());
@@ -138,7 +207,7 @@ class LifecycleActionServiceTest {
         Subscription subscription = buildSubscription("AC");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
 
-        service.execute(1L, "CANCEL", Map.of("immediate", true));
+        service.executeProductAction(1L, "CANCEL", Map.of("immediate", true));
 
         assertEquals("CA", subscription.getStatus());
         assertEquals(LocalDate.now(), subscription.getCancelDate());
@@ -150,7 +219,7 @@ class LifecycleActionServiceTest {
         Subscription subscription = buildSubscription("AC");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
 
-        service.execute(1L, "CANCEL", Map.of("immediate", false));
+        service.executeProductAction(1L, "CANCEL", Map.of("immediate", false));
 
         assertEquals("CA", subscription.getStatus());
         assertEquals(LocalDate.now(), subscription.getCancelDate());
@@ -158,11 +227,60 @@ class LifecycleActionServiceTest {
     }
 
     @Test
+    void cancelsExpiredSubscription() {
+        Subscription subscription = buildSubscription("EX");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        service.executeProductAction(1L, "CANCEL", Map.of("immediate", true));
+
+        assertEquals("CA", subscription.getStatus());
+        assertEquals(LocalDate.now(), subscription.getCancelDate());
+        assertEquals(LocalDate.now(), subscription.getDeactivateDate());
+    }
+
+    @Test
+    void cancelReleasesResourcesAndNotesItInTheDescription() {
+        Subscription subscription = buildSubscription("AC");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+        when(resourceRepository.deleteByService_Subscription_Id(1L)).thenReturn(2L);
+
+        service.executeProductAction(1L, "CANCEL", Map.of("immediate", true));
+
+        verify(resourceRepository).deleteByService_Subscription_Id(1L);
+        ArgumentCaptor<Operation> captor = ArgumentCaptor.forClass(Operation.class);
+        verify(operationRepository).save(captor.capture());
+        assertTrue(captor.getValue().getDescription().contains("2 resources released"));
+    }
+
+    @Test
+    void cancelWithNoResourcesOmitsReleaseFromDescription() {
+        Subscription subscription = buildSubscription("AC");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        service.executeProductAction(1L, "CANCEL", Map.of("immediate", true));
+
+        ArgumentCaptor<Operation> captor = ArgumentCaptor.forClass(Operation.class);
+        verify(operationRepository).save(captor.capture());
+        assertFalse(captor.getValue().getDescription().contains("resources released"));
+    }
+
+    @Test
+    void nonImmediateCancelStillReleasesResources() {
+        Subscription subscription = buildSubscription("AC");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+        when(resourceRepository.deleteByService_Subscription_Id(1L)).thenReturn(1L);
+
+        service.executeProductAction(1L, "CANCEL", Map.of("immediate", false));
+
+        verify(resourceRepository).deleteByService_Subscription_Id(1L);
+    }
+
+    @Test
     void rejectsCancelWithoutImmediateFlag() {
         Subscription subscription = buildSubscription("AC");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
 
-        assertThrows(LifecycleActionValidationException.class, () -> service.execute(1L, "CANCEL", Map.of()));
+        assertThrows(LifecycleActionValidationException.class, () -> service.executeProductAction(1L, "CANCEL", Map.of()));
 
         ArgumentCaptor<Operation> captor = ArgumentCaptor.forClass(Operation.class);
         verify(operationRepository).save(captor.capture());
@@ -176,7 +294,7 @@ class LifecycleActionServiceTest {
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
 
         assertThrows(InvalidLifecycleTransitionException.class,
-                () -> service.execute(1L, "CANCEL", Map.of("immediate", true)));
+                () -> service.executeProductAction(1L, "CANCEL", Map.of("immediate", true)));
     }
 
     @Test
@@ -185,9 +303,9 @@ class LifecycleActionServiceTest {
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
         when(platformRepository.findByName("MOBILE_BSCS7")).thenReturn(Optional.of(new Platform(2L, "MOBILE_BSCS7")));
 
-        service.execute(1L, "CHANGE_PLAN", Map.of("platform", "MOBILE_BSCS7"));
+        service.executeServiceAction(1L, "CHANGE_PLAN", Map.of("platform", "MOBILE_BSCS7"));
 
-        assertEquals("MOBILE_BSCS7", subscription.getPlatform());
+        assertEquals("MOBILE_BSCS7", subscription.getService().getPlatform());
         assertEquals("AC", subscription.getStatus());
     }
 
@@ -198,8 +316,8 @@ class LifecycleActionServiceTest {
         when(platformRepository.findByName("UNKNOWN")).thenReturn(Optional.empty());
 
         assertThrows(LifecycleActionValidationException.class,
-                () -> service.execute(1L, "CHANGE_PLAN", Map.of("platform", "UNKNOWN")));
-        assertEquals("MOBILE_BSCS9", subscription.getPlatform());
+                () -> service.executeServiceAction(1L, "CHANGE_PLAN", Map.of("platform", "UNKNOWN")));
+        assertEquals("MOBILE_BSCS9", subscription.getService().getPlatform());
     }
 
     @Test
@@ -208,7 +326,7 @@ class LifecycleActionServiceTest {
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
 
         assertThrows(InvalidLifecycleTransitionException.class,
-                () -> service.execute(1L, "CHANGE_PLAN", Map.of("platform", "MOBILE_BSCS7")));
+                () -> service.executeServiceAction(1L, "CHANGE_PLAN", Map.of("platform", "MOBILE_BSCS7")));
     }
 
     @Test
@@ -216,9 +334,9 @@ class LifecycleActionServiceTest {
         Subscription subscription = buildSubscription("AC");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
 
-        service.execute(1L, "CHANGE_MSISDN", Map.of("msisdn", "+19998887777"));
+        service.executeServiceAction(1L, "CHANGE_MSISDN", Map.of("msisdn", "+19998887777"));
 
-        assertEquals("+19998887777", subscription.getMsisdn());
+        assertEquals("+19998887777", subscription.getService().getMsisdn());
     }
 
     @Test
@@ -227,7 +345,7 @@ class LifecycleActionServiceTest {
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
 
         assertThrows(LifecycleActionValidationException.class,
-                () -> service.execute(1L, "CHANGE_MSISDN", Map.of("msisdn", "abc")));
+                () -> service.executeServiceAction(1L, "CHANGE_MSISDN", Map.of("msisdn", "abc")));
     }
 
     @Test
@@ -235,9 +353,9 @@ class LifecycleActionServiceTest {
         Subscription subscription = buildSubscription("AC");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
 
-        service.execute(1L, "CHANGE_SIM", Map.of("simIccid", "8944000000000000000"));
+        service.executeServiceAction(1L, "CHANGE_SIM", Map.of("simIccid", "8944000000000000000"));
 
-        assertEquals("8944000000000000000", subscription.getSimIccid());
+        assertEquals("8944000000000000000", subscription.getService().getSimIccid());
     }
 
     @Test
@@ -245,7 +363,7 @@ class LifecycleActionServiceTest {
         Subscription subscription = buildSubscription("AC");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
 
-        assertThrows(LifecycleActionValidationException.class, () -> service.execute(1L, "CHANGE_SIM", Map.of()));
+        assertThrows(LifecycleActionValidationException.class, () -> service.executeServiceAction(1L, "CHANGE_SIM", Map.of()));
     }
 
     @Test
@@ -253,7 +371,7 @@ class LifecycleActionServiceTest {
         Subscription subscription = buildSubscription("AC");
         when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
 
-        assertThrows(UnknownLifecycleActionException.class, () -> service.execute(1L, "FOO", Map.of()));
+        assertThrows(UnknownLifecycleActionException.class, () -> service.executeProductAction(1L, "FOO", Map.of()));
         verify(operationRepository, never()).save(any());
     }
 
@@ -261,7 +379,7 @@ class LifecycleActionServiceTest {
     void rejectsUnknownSubscription() {
         when(subscriptionRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThrows(SubscriptionNotFoundException.class, () -> service.execute(999L, "SUSPEND", Map.of()));
+        assertThrows(SubscriptionNotFoundException.class, () -> service.executeProductAction(999L, "SUSPEND", Map.of()));
     }
 
     @Test
@@ -290,7 +408,7 @@ class LifecycleActionServiceTest {
     void listsAllOperationsAcrossSubscriptionsMostRecentFirst() {
         Subscription subscriptionOne = buildSubscription("AC");
         Client otherClient = new Client(2L, "Jane", "Roe", "jane@roe.com", "+19998887777");
-        Subscription subscriptionTwo = new Subscription(2L, otherClient, "FIXED_BSCS7", "CONTR_002",
+        Subscription subscriptionTwo = new Subscription(2L, otherClient, "CONTR_002",
                 "SU", LocalDate.now(), new BigDecimal("5.00"));
         LocalDateTime earlier = LocalDateTime.now().minusHours(1);
         LocalDateTime later = LocalDateTime.now();
@@ -310,5 +428,48 @@ class LifecycleActionServiceTest {
     void listsAllOperationsEmptyWhenNoneRecorded() {
         when(operationRepository.findAllByOrderByCreatedDateDesc()).thenReturn(List.of());
         assertTrue(service.getAllOperations().isEmpty());
+    }
+
+    @Test
+    void classifiesEachActionsDomainCorrectly() {
+        assertEquals(LifecycleDomain.PRODUCT, new SuspendAction().domain());
+        assertEquals(LifecycleDomain.PRODUCT, new ReconnectAction().domain());
+        assertEquals(LifecycleDomain.PRODUCT, new CancelAction(resourceRepository).domain());
+        assertEquals(LifecycleDomain.SERVICE, new ChangePlanAction(platformRepository).domain());
+        assertEquals(LifecycleDomain.SERVICE, new ChangeMsisdnAction().domain());
+        assertEquals(LifecycleDomain.SERVICE, new ChangeSimAction().domain());
+        assertEquals(LifecycleDomain.PRODUCT, new MarkExpiredAction().domain());
+        assertEquals(LifecycleDomain.PRODUCT, new PaymentReceivedAction().domain());
+    }
+
+    @Test
+    void rejectsProductActionCalledWithServiceDomainType() {
+        Subscription subscription = buildSubscription("AC");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        assertThrows(WrongLifecycleDomainException.class,
+                () -> service.executeProductAction(1L, "CHANGE_PLAN", Map.of("platform", "MOBILE_BSCS7")));
+        verify(operationRepository, never()).save(any());
+    }
+
+    @Test
+    void rejectsServiceActionCalledWithProductDomainType() {
+        Subscription subscription = buildSubscription("AC");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        assertThrows(WrongLifecycleDomainException.class,
+                () -> service.executeServiceAction(1L, "SUSPEND", Map.of()));
+        verify(operationRepository, never()).save(any());
+    }
+
+    @Test
+    void domainCheckFiresBeforeEligibilityCheck() {
+        // CHANGE_PLAN is only eligible for AC/TR — SU fails eligibility too, but the wrong-domain
+        // rejection must win since it runs first.
+        Subscription subscription = buildSubscription("SU");
+        when(subscriptionRepository.findById(1L)).thenReturn(Optional.of(subscription));
+
+        assertThrows(WrongLifecycleDomainException.class,
+                () -> service.executeProductAction(1L, "CHANGE_PLAN", Map.of("platform", "MOBILE_BSCS7")));
     }
 }

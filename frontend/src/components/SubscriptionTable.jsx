@@ -1,4 +1,6 @@
-import { STATUS_LABELS, STATUS_BADGE_CLASSES } from '../constants';
+import { STATUS_LABELS, STATUS_TOKEN, statusRailClassName } from '../constants';
+import StatusBadge from './ui/StatusBadge';
+import DataTable from './ui/DataTable';
 
 const SORTABLE_COLUMNS = ['clientName', 'platform', 'entryDate', 'amount'];
 
@@ -31,8 +33,8 @@ export default function SubscriptionTable({ rows, total, sort, onSort, page, row
   }
 
   return (
-    <div className="flex-grow-1 p-3 overflow-auto">
-      <div className="d-flex justify-content-between align-items-center mb-2">
+    <div className="page">
+      <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
         <small className="text-muted">
           Showing <strong>{from}–{to}</strong> of <strong>{total}</strong> subscriptions
         </small>
@@ -60,56 +62,52 @@ export default function SubscriptionTable({ rows, total, sort, onSort, page, row
         </div>
       </div>
 
-      <div className="table-responsive">
-        <table className="table table-bordered table-hover table-sm">
-          <thead className="table-light">
+      <DataTable>
+        <thead>
+          <tr>
+            {COLUMNS.map(col => (
+              <th
+                key={col.key}
+                className={SORTABLE_COLUMNS.includes(col.key) ? 'sortable' : ''}
+                onClick={() => handleHeaderClick(col.key)}
+              >
+                {col.label}
+                {SORTABLE_COLUMNS.includes(col.key) && (
+                  <SortIndicator column={col.key} sort={sort} />
+                )}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
             <tr>
-              {COLUMNS.map(col => (
-                <th
-                  key={col.key}
-                  style={SORTABLE_COLUMNS.includes(col.key) ? { cursor: 'pointer', userSelect: 'none' } : {}}
-                  onClick={() => handleHeaderClick(col.key)}
-                >
-                  {col.label}
-                  {SORTABLE_COLUMNS.includes(col.key) && (
-                    <SortIndicator column={col.key} sort={sort} />
-                  )}
-                </th>
-              ))}
+              <td colSpan={7} className="text-center text-muted py-4">
+                No subscriptions found
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="text-center text-muted py-4">
-                  No subscriptions found
+          ) : (
+            rows.map(row => (
+              <tr key={row.id} className={statusRailClassName(row.status)}>
+                <td>
+                  <div className="fw-semibold">{row.clientName}</div>
+                  <div className="text-muted small">{row.email} · <span className="font-mono">{row.msisdn}</span></div>
+                </td>
+                <td>{row.platform}</td>
+                <td className="text-muted font-mono">{row.contract}</td>
+                <td>
+                  <StatusBadge token={STATUS_TOKEN[row.status]} label={STATUS_LABELS[row.status]} />
+                </td>
+                <td className="text-muted font-mono">{row.entryDate}</td>
+                <td className="font-mono">${row.amount.toFixed(2)}</td>
+                <td>
+                  <button className="btn btn-link btn-sm p-0" onClick={() => onView(row.id)}>View</button>
                 </td>
               </tr>
-            ) : (
-              rows.map(row => (
-                <tr key={row.id}>
-                  <td>
-                    <div className="fw-semibold">{row.clientName}</div>
-                    <div className="text-muted small">{row.email} · {row.msisdn}</div>
-                  </td>
-                  <td>{row.platform}</td>
-                  <td className="text-muted">{row.contract}</td>
-                  <td>
-                    <span className={STATUS_BADGE_CLASSES[row.status]}>
-                      {STATUS_LABELS[row.status]}
-                    </span>
-                  </td>
-                  <td className="text-muted">{row.entryDate}</td>
-                  <td>${row.amount.toFixed(2)}</td>
-                  <td>
-                    <button className="btn btn-link btn-sm p-0" onClick={() => onView(row.id)}>View</button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+            ))
+          )}
+        </tbody>
+      </DataTable>
     </div>
   );
 }

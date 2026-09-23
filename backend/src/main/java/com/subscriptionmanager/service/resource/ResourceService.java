@@ -10,6 +10,7 @@ import com.subscriptionmanager.service.lifecycle.SubscriptionNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -29,9 +30,9 @@ public class ResourceService {
 
     public List<ResourceDTO> getResources(Long subscriptionId) {
         requireSubscription(subscriptionId);
-        return resourceRepository.findBySubscriptionIdOrderByIdAsc(subscriptionId)
+        return resourceRepository.findByService_Subscription_IdOrderByIdAsc(subscriptionId)
                 .stream()
-                .map(this::toDTO)
+                .map(resource -> toDTO(resource, subscriptionId))
                 .collect(Collectors.toList());
     }
 
@@ -43,14 +44,17 @@ public class ResourceService {
                     "resourceType must be one of " + VALID_TYPES);
         }
 
-        Resource resource = new Resource(subscription, request.getResourceType(), request.getValue());
-        return toDTO(resourceRepository.save(resource));
+        Resource resource = new Resource(subscription.getService(), request.getResourceType(), request.getValue());
+        return toDTO(resourceRepository.save(resource), subscriptionId);
     }
 
     public void deleteResource(Long subscriptionId, Long resourceId) {
-        requireSubscription(subscriptionId);
+        Subscription subscription = requireSubscription(subscriptionId);
+        // Compare Service ids directly (both are free proxy-id reads) rather than going through
+        // r.getService().getSubscription() — that hop is a non-identifier property access and would
+        // force Service to initialize under open-in-view=false.
         Resource resource = resourceRepository.findById(resourceId)
-                .filter(r -> r.getSubscription().getId().equals(subscriptionId))
+                .filter(r -> Objects.equals(r.getService().getId(), subscription.getService().getId()))
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No resource exists with id " + resourceId + " for subscription " + subscriptionId));
         resourceRepository.delete(resource);
@@ -62,10 +66,10 @@ public class ResourceService {
                         "No subscription exists with id " + subscriptionId));
     }
 
-    private ResourceDTO toDTO(Resource resource) {
+    private ResourceDTO toDTO(Resource resource, Long subscriptionId) {
         return new ResourceDTO(
                 resource.getId(),
-                resource.getSubscription().getId(),
+                subscriptionId,
                 resource.getResourceType(),
                 resource.getValue());
     }

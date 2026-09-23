@@ -1,30 +1,25 @@
+import Timeline from './ui/Timeline';
+import EmptyState from './ui/EmptyState';
+import { OPERATION_STATUS_TOKEN } from '../constants';
+
 export default function SubscriptionHistoryTimeline({ operations }) {
   if (operations.length === 0) {
-    return <div className="text-muted small">No operations recorded yet.</div>;
+    return <EmptyState message="No operations recorded yet." />;
   }
 
   const sorted = [...operations].sort(
     (a, b) => new Date(b.createdDate) - new Date(a.createdDate)
   );
 
-  return (
-    <ul className="list-group">
-      {sorted.map(op => {
-        const failed = op.status === 'FAILED';
-        return (
-          <li
-            key={op.id}
-            className={`list-group-item ${failed ? 'list-group-item-danger' : ''}`}
-          >
-            <div className="d-flex justify-content-between">
-              <span className="fw-semibold">{op.operationType}</span>
-              <span className="text-muted small">{op.createdDate}</span>
-            </div>
-            <div>{op.description || op.errorMessage}</div>
-            <span className={`badge ${failed ? 'bg-danger' : 'bg-success'}`}>{op.status}</span>
-          </li>
-        );
-      })}
-    </ul>
-  );
+  const items = sorted.map(op => ({
+    id: op.id,
+    token: OPERATION_STATUS_TOKEN[op.status] || 'slate',
+    title: op.operationType,
+    date: op.createdDate,
+    body: op.description || op.errorMessage,
+    status: op.status,
+    failed: op.status === 'FAILED',
+  }));
+
+  return <Timeline items={items} />;
 }

@@ -99,7 +99,7 @@ class DashboardServiceTest {
         when(subscriptionRepository.countByStatus()).thenReturn(List.of());
 
         Client client = new Client(1L, "John", "Doe", "john@doe.com", "+11234567890");
-        Subscription subscription = new Subscription(1L, client, "MOBILE_BSCS9", "CONTR_001", "AC",
+        Subscription subscription = new Subscription(1L, client, "CONTR_001", "AC",
                 LocalDate.now(), new BigDecimal("10.00"));
         LocalDateTime now = LocalDateTime.now();
         Operation newest = new Operation(subscription, "SUSPEND", "COMPLETED", now, now, null, "AC -> SU", null);

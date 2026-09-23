@@ -14,10 +14,11 @@ public class SubscriptionDTO {
     private String status;
     private LocalDate entryDate;
     private BigDecimal amount;
+    private String po;
 
     public SubscriptionDTO(Long id, String clientName, String email, String msisdn,
                            String platform, String contract, String status,
-                           LocalDate entryDate, BigDecimal amount) {
+                           LocalDate entryDate, BigDecimal amount, String po) {
         this.id = id;
         this.clientName = clientName;
         this.email = email;
@@ -27,6 +28,7 @@ public class SubscriptionDTO {
         this.status = status;
         this.entryDate = entryDate;
         this.amount = amount;
+        this.po = po;
     }
 
     public Long getId() { return id; }
@@ -38,4 +40,5 @@ public class SubscriptionDTO {
     public String getStatus() { return status; }
     public LocalDate getEntryDate() { return entryDate; }
     public BigDecimal getAmount() { return amount; }
+    public String getPo() { return po; }
 }

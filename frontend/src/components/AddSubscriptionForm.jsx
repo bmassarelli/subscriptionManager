@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../api';
 
-const INITIAL_VALUES = { clientId: '', platform: '', contract: '', amount: '', paymentModeId: '' };
+const INITIAL_VALUES = { clientId: '', platform: '', contract: '', amount: '', paymentModeId: '', po: '' };
 
 const FIELD_LABELS = {
   clientId: 'Client',
@@ -15,26 +16,32 @@ export default function AddSubscriptionForm({ onCreated }) {
   const [clients, setClients] = useState([]);
   const [platforms, setPlatforms] = useState([]);
   const [paymentModes, setPaymentModes] = useState([]);
+  const [productOfferings, setProductOfferings] = useState([]);
   const [values, setValues] = useState(INITIAL_VALUES);
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetch('http://localhost:8080/api/clients')
+    apiFetch('/api/clients')
       .then(res => (res.ok ? res.json() : []))
       .then(setClients)
       .catch(() => setClients([]));
 
-    fetch('http://localhost:8080/api/platforms')
+    apiFetch('/api/platforms')
       .then(res => (res.ok ? res.json() : []))
       .then(setPlatforms)
       .catch(() => setPlatforms([]));
 
-    fetch('http://localhost:8080/api/payment-modes')
+    apiFetch('/api/payment-modes')
       .then(res => (res.ok ? res.json() : []))
       .then(setPaymentModes)
       .catch(() => setPaymentModes([]));
+
+    apiFetch('/api/product-offerings')
+      .then(res => (res.ok ? res.json() : []))
+      .then(setProductOfferings)
+      .catch(() => setProductOfferings([]));
   }, []);
 
   function handleChange(field) {
@@ -66,7 +73,7 @@ export default function AddSubscriptionForm({ onCreated }) {
     setErrors({});
     setSubmitting(true);
     try {
-      const res = await fetch('http://localhost:8080/api/subscriptions', {
+      const res = await apiFetch('/api/subscriptions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -75,6 +82,7 @@ export default function AddSubscriptionForm({ onCreated }) {
           contract: values.contract,
           amount: Number(values.amount),
           ...(values.paymentModeId ? { paymentModeId: Number(values.paymentModeId) } : {}),
+          ...(values.po ? { po: values.po } : {}),
         }),
       });
 
@@ -184,6 +192,28 @@ export default function AddSubscriptionForm({ onCreated }) {
           </select>
           {errors.paymentModeId && (
             <div className="invalid-feedback">{errors.paymentModeId}</div>
+          )}
+        </div>
+
+        <div className="col-auto">
+          <label className="form-label mb-0" htmlFor="subscription-po">
+            Product Offering (optional)
+          </label>
+          <select
+            id="subscription-po"
+            className={`form-select${errors.po ? ' is-invalid' : ''}`}
+            value={values.po}
+            onChange={handleChange('po')}
+          >
+            <option value="">None</option>
+            {productOfferings.map(po => (
+              <option key={po.id} value={po.name}>
+                {po.name}
+              </option>
+            ))}
+          </select>
+          {errors.po && (
+            <div className="invalid-feedback">{errors.po}</div>
           )}
         </div>
 

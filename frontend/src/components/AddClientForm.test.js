@@ -67,3 +67,37 @@ test('renders backend field errors and preserves entered values', async () => {
   expect(screen.getByLabelText('Name')).toHaveValue('John');
   expect(screen.getByLabelText('Email')).toHaveValue('not-an-email');
 });
+
+const EXISTING_CLIENT = { clientId: 5, name: 'Jane', lastName: 'Roe', email: 'jane@roe.com', msisdn: '+19876543210' };
+
+test('edit mode pre-fills fields and submits a PUT to the client endpoint', async () => {
+  global.fetch.mockResolvedValueOnce({
+    ok: true,
+    status: 200,
+    json: async () => ({ ...EXISTING_CLIENT, name: 'Janet' }),
+  });
+
+  const onSaved = jest.fn();
+  render(<AddClientForm client={EXISTING_CLIENT} onSaved={onSaved} />);
+
+  expect(screen.getByLabelText('Name')).toHaveValue('Jane');
+  expect(screen.getByLabelText('Email')).toHaveValue('jane@roe.com');
+
+  userEvent.clear(screen.getByLabelText('Name'));
+  userEvent.type(screen.getByLabelText('Name'), 'Janet');
+  userEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+  await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+
+  const [url, options] = global.fetch.mock.calls[0];
+  expect(url).toBe('http://localhost:8080/api/clients/5');
+  expect(options.method).toBe('PUT');
+  expect(JSON.parse(options.body)).toEqual({
+    name: 'Janet',
+    lastName: 'Roe',
+    email: 'jane@roe.com',
+    msisdn: '+19876543210',
+  });
+
+  await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+});
