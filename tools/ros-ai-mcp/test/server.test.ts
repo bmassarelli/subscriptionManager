@@ -31,7 +31,7 @@ describe('registerTools', () => {
     vi.restoreAllMocks();
   });
 
-  it('registers all 9 Phase-1 read-only tools, the 4 Phase-2 intelligence tools, and the Phase-3 skeleton tool', () => {
+  it('registers all 9 Phase-1 read-only tools, the 4 Phase-2 intelligence tools, the Phase-3 skeleton tool, and get_action_parameters', () => {
     const server = new FakeMcpServer();
     registerTools(server, fakeClient());
 
@@ -44,6 +44,7 @@ describe('registerTools', () => {
         'find_similar_flows',
         'get_action',
         'get_action_command',
+        'get_action_parameters',
         'get_action_template',
         'get_flow',
         'get_flow_steps',
@@ -54,6 +55,26 @@ describe('registerTools', () => {
         'summarize_flow_skeleton',
       ].sort()
     );
+  });
+
+  it('get_action_parameters handler returns the parsed rows plus a joined signature', async () => {
+    const client = fakeClient({
+      postForm: vi.fn().mockResolvedValue({
+        requestData: [
+          { parserId: 1, actionId: 88138, parserTarget: 'INPUT_PARAM', seqId: 1, parserType: null, parserValue: null, propertyPath: 'typeRecurso', schemaDefId: 2, propertyType: null, version: 1, modDate: 0, userName: 'x' },
+        ],
+      }),
+    });
+    const server = new FakeMcpServer();
+    registerTools(server, client);
+
+    const tool = server.registered.find((t) => t.name === 'get_action_parameters')!;
+    const result = await tool.handler({ actionId: 88138 });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.parsers).toHaveLength(1);
+    expect(parsed.signature.inputs).toEqual([{ seqId: 1, propertyPath: 'typeRecurso', schemaType: 'Number' }]);
   });
 
   it('a tool handler calls the client and returns MCP text content on success', async () => {
@@ -155,18 +176,20 @@ describe('registerTools', () => {
     expect(parsed.preview.summary).toContain('X');
   });
 
-  it('does NOT register create_flow or save_flow_steps when enableWrite is false or omitted', () => {
+  it('does NOT register create_flow, save_flow_steps, or update_flow_steps when enableWrite is false or omitted', () => {
     const server = new FakeMcpServer();
     registerTools(server, fakeClient());
     expect(server.registered.some((tool) => tool.name === 'create_flow')).toBe(false);
     expect(server.registered.some((tool) => tool.name === 'save_flow_steps')).toBe(false);
+    expect(server.registered.some((tool) => tool.name === 'update_flow_steps')).toBe(false);
   });
 
-  it('registers create_flow and save_flow_steps when enableWrite is true, without needing restDeps', () => {
+  it('registers create_flow, save_flow_steps, and update_flow_steps when enableWrite is true, without needing restDeps', () => {
     const server = new FakeMcpServer();
     registerTools(server, fakeClient(), { enableWrite: true });
     expect(server.registered.some((tool) => tool.name === 'create_flow')).toBe(true);
     expect(server.registered.some((tool) => tool.name === 'save_flow_steps')).toBe(true);
+    expect(server.registered.some((tool) => tool.name === 'update_flow_steps')).toBe(true);
   });
 
   it('create_flow handler returns MCP text content on a rejected preview', async () => {
@@ -189,6 +212,21 @@ describe('registerTools', () => {
     registerTools(server, client, { enableWrite: true });
 
     const tool = server.registered.find((t) => t.name === 'save_flow_steps')!;
+    const result = await tool.handler({ flowId: 1, steps: [{ kind: 'end' }] });
+
+    expect(result.isError).toBeFalsy();
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.applied).toBe(false);
+    expect(parsed.error.message).toMatch(/not found/i);
+  });
+
+  it('update_flow_steps handler returns MCP text content on a rejected preview (flow not found)', async () => {
+    const client = fakeClient();
+    vi.spyOn(client, 'getJson').mockResolvedValue({ requestData: { flow: null } });
+    const server = new FakeMcpServer();
+    registerTools(server, client, { enableWrite: true });
+
+    const tool = server.registered.find((t) => t.name === 'update_flow_steps')!;
     const result = await tool.handler({ flowId: 1, steps: [{ kind: 'end' }] });
 
     expect(result.isError).toBeFalsy();

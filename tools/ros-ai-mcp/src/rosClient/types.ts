@@ -467,10 +467,13 @@ export interface SaveFlowDetailRequestBody {
 }
 
 // A single step in the flat, DFS-numbered array POST /saveFlowStep expects.
-// bypass/syncStep are deliberately absent — v1's DSL never sets them, so
-// they're simply omitted rather than sent as `_bypass`/`_syncStep` (the real
-// wire field names on write, underscore-prefixed unlike the read-side
-// `bypass`/`syncStep` — see flowStepTree.ts if a future phase adds them).
+// _bypass/_syncStep are the real wire field names on write — underscore-prefixed,
+// unlike the read-side `bypass`/`syncStep` (StepOptimistic), AND booleans on write
+// vs. "Y"/null strings on read. Confirmed by reading FlowProcessor.saveFlowSteps in
+// ROS's own Java source (C:\Users\52554\Documents\masros): it does
+// `Boolean bypass = (Boolean) step.get("_bypass")` then `rfs.setBypass(bypass ? "Y" : null)`
+// — sending a string here throws ClassCastException (reproduced live against ROS DEV,
+// 2026-09-22, on flow 64506 itself; write rolled back cleanly, no data lost).
 export interface WireFlowStep {
   stepId: number;
   parentStepId: number;
@@ -478,6 +481,9 @@ export interface WireFlowStep {
   flowActionDes?: string;
   decision?: 'Y' | 'N';
   ymlConfig?: Record<string, Record<string, unknown>>;
+  multiplyArrProp?: string;
+  _bypass?: boolean;
+  _syncStep?: boolean;
 }
 
 // Wire body of POST /saveFlowStep. version:0/modDate:0 are the sentinels
@@ -549,3 +555,46 @@ export interface JobDetailResponse {
   historyJob?: { item: HistoryJobItem[] } | null;
   errorCodeGroup?: { errorItem: ErrorCodeGroupItem[] } | null;
 }
+
+// POST /rosActionParserExecute (search) — a row of RosActionParser, the table
+// behind an action's "Parsers" tab in masros-gui. This is the ONLY place a
+// PROCEDURE-type action's real stored-procedure parameter signature lives —
+// /actionDBConfig (see ActionDBConfig above) never has it, confirmed by
+// reading ActionDBConfigController.java directly (it only ever returns the
+// generic protocol/YML config map, never parameter bindings).
+//
+// parserTarget "INPUT_PARAM": propertyPath is the item property supplying the
+// IN parameter's value, schemaDefId is its type (see SCHEMA_DEF_ID_NAMES).
+// parserTarget "OUTPUT_PARAM_TYPE": parserValue is the raw PL/SQL out type
+// (VARCHAR/NUMBER/CURSOR/DATE), declaring the shape of one OUT parameter
+// position — it does not by itself say where that value goes.
+// parserTarget "STORE_PARAM": propertyPath is the item property an OUTPUT
+// value gets written into. An OUTPUT_PARAM_TYPE row and a STORE_PARAM row
+// sharing the same seqId are the two halves of one output parameter — join
+// them on seqId to get "this OUT param's type" + "where it's stored".
+export interface RosActionParser {
+  parserId: number;
+  actionId: number;
+  parserTarget: string;
+  seqId: number | null;
+  parserType: string | null;
+  parserValue: string | null;
+  propertyPath: string | null;
+  schemaDefId: number | null;
+  propertyType: string | null;
+  version: number;
+  modDate: number;
+  userName: string;
+  toEncryptedStored?: boolean;
+}
+
+// schemaDefId -> human name, mirrors masros-gui's SCHEMA_OBJECT map in
+// resources/js/actions/action_parser.js (confirmed 2026-09-21).
+export const SCHEMA_DEF_ID_NAMES: Record<number, string> = {
+  1: 'String',
+  2: 'Number',
+  3: 'Boolean',
+  4: 'Date',
+  5: 'Clob',
+  16: 'Encrypted',
+};

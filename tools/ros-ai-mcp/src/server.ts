@@ -7,6 +7,7 @@ import { getFlowSteps } from './tools/getFlowSteps.js';
 import { searchFlows } from './tools/searchFlows.js';
 import { searchActions } from './tools/searchActions.js';
 import { getAction } from './tools/getAction.js';
+import { getActionParameters, summarizeProcedureSignature } from './tools/getActionParameters.js';
 import { getActionCommand } from './tools/getActionCommand.js';
 import { getActionTemplate } from './tools/getActionTemplate.js';
 import { getItemInfo } from './tools/getItemInfo.js';
@@ -20,6 +21,8 @@ import { saveAction, type SaveActionInput } from './tools/saveAction.js';
 import { executeFlow, type ExecuteFlowDeps, type ExecuteFlowInput } from './tools/executeFlow.js';
 import { createFlow, type CreateFlowInput } from './tools/createFlow.js';
 import { saveFlowSteps, type SaveFlowStepsInput } from './tools/saveFlowSteps.js';
+import { updateFlowSteps, type UpdateFlowStepsInput } from './tools/updateFlowSteps.js';
+import { repairFlowSteps, type RepairFlowStepsInput } from './tools/repairFlowSteps.js';
 import { getJobStatus } from './tools/getJobStatus.js';
 
 export interface McpToolResult {
@@ -133,6 +136,20 @@ export function registerTools(server: McpServerLike, client: RosClientLike, opti
     async (args) => {
       try {
         return ok(await getAction(client, { actionId: args.actionId as number, actionVersion: args.actionVersion as number | undefined }));
+      } catch (err) {
+        return fail(err);
+      }
+    }
+  );
+
+  server.tool(
+    'get_action_parameters',
+    "Get a ROS action's real IN/OUT parameter signature (the RosActionParser rows behind its 'Parsers' tab in masros-gui) — the only place a PROCEDURE-type action's stored-procedure parameter bindings live; /actionDBConfig and get_action never expose them. Returns both the raw parser rows and a summarized {inputs, outputs} signature with OUTPUT_PARAM_TYPE/STORE_PARAM rows joined by seqId.",
+    { actionId: z.number() },
+    async (args) => {
+      try {
+        const parsers = await getActionParameters(client, { actionId: args.actionId as number });
+        return ok({ parsers, signature: summarizeProcedureSignature(parsers) });
       } catch (err) {
         return fail(err);
       }
@@ -371,10 +388,35 @@ export function registerTools(server: McpServerLike, client: RosClientLike, opti
 
     const stepNodeSchema: z.ZodTypeAny = z.lazy(() =>
       z.union([
-        z.object({ kind: z.literal('action'), actionCode: z.string(), des: z.string().optional(), ymlConfig: z.record(z.unknown()).optional() }),
-        z.object({ kind: z.literal('decision'), criteria: z.string(), yes: z.array(stepNodeSchema), no: z.array(stepNodeSchema) }),
-        z.object({ kind: z.literal('subflow'), flowCode: z.string(), ymlConfig: z.record(z.unknown()).optional() }),
-        z.object({ kind: z.literal('end') }),
+        z.object({
+          kind: z.literal('action'),
+          actionCode: z.string(),
+          des: z.string().optional(),
+          ymlConfig: z.record(z.unknown()).optional(),
+          bypass: z.boolean().optional(),
+          syncStep: z.boolean().optional(),
+          ref: z.string().optional(),
+        }),
+        z.object({
+          kind: z.literal('decision'),
+          criteria: z.string(),
+          des: z.string().optional(),
+          bypass: z.boolean().optional(),
+          syncStep: z.boolean().optional(),
+          yes: z.array(stepNodeSchema),
+          no: z.array(stepNodeSchema),
+          ref: z.string().optional(),
+        }),
+        z.object({ kind: z.literal('subflow'), flowCode: z.string(), ymlConfig: z.record(z.unknown()).optional(), ref: z.string().optional() }),
+        z.object({
+          kind: z.literal('multiply-subflow'),
+          flowCode: z.string(),
+          arrayProperty: z.string(),
+          saveProperty: z.string().optional(),
+          ref: z.string().optional(),
+        }),
+        z.object({ kind: z.literal('end'), ref: z.string().optional() }),
+        z.object({ kind: z.literal('goto'), ref: z.string() }),
       ])
     );
 
@@ -389,6 +431,58 @@ export function registerTools(server: McpServerLike, client: RosClientLike, opti
       async (args) => {
         try {
           return ok(await saveFlowSteps(client, args as unknown as SaveFlowStepsInput));
+        } catch (err) {
+          return fail(err);
+        }
+      }
+    );
+
+    server.tool(
+      'update_flow_steps',
+      "Replace the step tree of an existing ROS flow (one that already has steps) from a simplified DSL (action/decision/subflow/end), with mandatory human-approval preview. Refuses to run if the rebuilt tree would alter or remove any existing step not covered by the DSL — only pure additions are allowed, unless force:true is also passed. Without confirm:true, returns a preview (including an added/unexpectedlyChanged/unexpectedlyMissing diff against the current steps) and never writes to ROS; call again with confirm:true only after the user has approved the preview. If the diff shows non-empty unexpectedlyChanged/unexpectedlyMissing, the call is aborted with no write unless force:true is set — force:true only lifts the abort (the preview/confirm gate still applies), so a forced call still requires confirm:true to actually write, and the returned preview/warnings make explicit which existing steps will be altered or removed. Only pass force:true after the user has reviewed that diff and explicitly confirmed the change/removal is intentional.",
+      {
+        flowId: z.number(),
+        steps: z.array(stepNodeSchema),
+        confirm: z.boolean().optional(),
+        force: z.boolean().optional(),
+      },
+      async (args) => {
+        try {
+          return ok(await updateFlowSteps(client, args as unknown as UpdateFlowStepsInput));
+        } catch (err) {
+          return fail(err);
+        }
+      }
+    );
+
+    server.tool(
+      'repair_flow_steps',
+      "RESTRICTED recovery-only mechanism for a flow whose normal read fails with ROS's known 'Repeated key ... of children of yml config STEP:<flowCode> step <N>' duplicate-key error (a distinct condition from update_flow_steps' normal use — do not use this for ordinary edits). Requires recoveryMode:true, expectedFlowCode, expectedCurrentVersion, expectedModDate (read via SQL, never inferred), a non-empty baseline of the known-good physical rows (from SQL), and a confirmationPhrase equal to REPAIR_FLOW_<flowId>_VERSION_<expectedCurrentVersion> — checked even in preview mode. Verifies the flow exists, its flowCode and active version match exactly, and the normal read genuinely fails with the known duplicate-key pattern (calling the raw endpoint directly to inspect the real error text) before doing anything else; any mismatch aborts with no write. The rebuilt payload's structural shape must reproduce the supplied baseline exactly on every field it carries — stepId, parentStepId, the actionId resolved from actionCode (including framework actionCodes INFLOW/OUTFLOW/INLINEDEC/INMLTPL/OUTMLTPL/ES), decision, flowActionDes, bypass, syncStep, and functional ymlConfig content per stepId — with exactly one allowed divergence: a row may drop ymlConfig content that, in the baseline, was already duplicated byte-for-byte on another row of the same stepId (a different parentStepId) — i.e. the goto-clone duplication this tool exists to fix. Any other deviation aborts with no write, so this tool can fix known ymlConfig duplication/SK_OPTIMISTIC-sentinel bugs but can never introduce a functional change. Has no force parameter. Without confirm:true, returns a preview (resolvedSteps plus baselineMatch diagnostics) and never writes; call again with confirm:true only after the user has reviewed and approved that preview. Writes through the same official /saveFlowStep endpoint ROS's own GUI uses — never raw SQL.",
+      {
+        flowId: z.number(),
+        expectedFlowCode: z.string(),
+        expectedCurrentVersion: z.number(),
+        expectedModDate: z.number(),
+        recoveryMode: z.literal(true),
+        confirmationPhrase: z.string(),
+        baseline: z.array(
+          z.object({
+            stepId: z.number(),
+            parentStepId: z.number(),
+            actionId: z.number(),
+            decision: z.union([z.literal('Y'), z.literal('N')]).nullable().optional(),
+            flowActionDes: z.string().nullable().optional(),
+            bypass: z.boolean().nullable().optional(),
+            syncStep: z.boolean().nullable().optional(),
+            ymlConfig: z.record(z.unknown()).nullable().optional(),
+          })
+        ),
+        steps: z.array(stepNodeSchema),
+        confirm: z.boolean().optional(),
+      },
+      async (args) => {
+        try {
+          return ok(await repairFlowSteps(client, args as unknown as RepairFlowStepsInput));
         } catch (err) {
           return fail(err);
         }

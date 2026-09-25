@@ -12,6 +12,9 @@ export async function getFlowSteps(client: RosClientLike, input: GetFlowStepsInp
     form.rfsVersion = input.rfsVersion;
   }
 
-  const response = await client.postForm<RequestPaginationData<StepOptimistic[]>>('/getFlowStepInfo', form);
-  return response.requestData;
+  const response = await client.postForm<RequestPaginationData<StepOptimistic[] | null>>('/getFlowStepInfo', form);
+  // ROS returns requestData:null (not []) when a flow has no steps or the step-info
+  // cache hasn't caught up yet — every consumer (get_flow_steps, analyze_flow,
+  // update_flow_steps) expects an array and crashes on .length/iteration otherwise.
+  return response.requestData ?? [];
 }
