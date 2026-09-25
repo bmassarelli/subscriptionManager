@@ -24,29 +24,21 @@ is never run as part of `npm test`.
 
 ## Registering with Claude Code
 
-This copy lives at `tools/ros-ai-mcp/` inside `subscriptionManager`, and the
-project already ships a `.mcp.json` at the repo root pointing at
-`tools/ros-ai-mcp/dist/index.js` (relative path) — after `npm run build`
-below, Claude Code auto-detects it when you open this project and prompts to
-enable it. Nothing to register manually.
-
-If you want it registered globally instead (available in every project, not
-just this one):
-
 ```bash
 npm run build
-claude mcp add ros-ai-mcp -s user -- node "<absolute path to this folder>\dist\index.js"
+claude mcp add ros-ai-mcp -s user -- node "C:\Users\52554\Documents\ros-ai-mcp\dist\index.js"
 ```
 
-Credentials are read from `.env` in this folder at process start — nothing is
-passed on the `claude mcp add` command line.
+The `-s user` flag registers the server globally (available in all projects). Credentials
+are read from `.env` in this repo at process start — nothing is passed on the
+`claude mcp add` command line.
 
 ## Scope
 
-14 read-only tools plus 5 tools gated behind `ROS_MCP_ENABLE_WRITE` (off by
-default) — `save_action`, `execute_flow`, `create_flow`, and `save_flow_steps`
-write to ROS; `get_job_status` is itself read-only but shares the same gate
-and environment variables (see Phase 7).
+14 read-only tools plus 6 tools gated behind `ROS_MCP_ENABLE_WRITE` (off by
+default) — `save_action`, `execute_flow`, `create_flow`, `save_flow_steps`,
+and `update_flow_steps` write to ROS; `get_job_status` is itself read-only
+but shares the same gate and environment variables (see Phase 7).
 
 **Phase 1 — data access (9 tools):** `search_flows`, `get_flow`,
 `get_flow_steps`, `search_actions`, `get_action`, `get_action_command`,
@@ -94,4 +86,10 @@ unlike `execute_flow`, it does not register at all if those vars are
 missing, since there's no meaningful preview-only mode for a pure read tool
 with no data source.
 
-**Phase 8 — flow creation (2 tools, off by default):** `create_flow` (create a new flow header), `save_flow_steps` (assemble a brand-new flow's step tree from a simplified action/decision/subflow/end DSL — refuses to run against a flow that already has steps). Both gated by `ROS_MCP_ENABLE_WRITE`, same preview/confirm:true pattern as `save_action`/`execute_flow`. v1 scope is create-only — neither tool edits an existing flow.
+**Phase 8 — flow creation (2 tools, off by default):** `create_flow` (create a new flow header), `save_flow_steps` (assemble a brand-new flow's step tree from a simplified DSL — refuses to run against a flow that already has steps). Both gated by `ROS_MCP_ENABLE_WRITE`, same preview/confirm:true pattern as `save_action`/`execute_flow`.
+
+The DSL shared by `save_flow_steps` and `update_flow_steps` has six step kinds: `action` (a plain ROS action by `actionCode`), `decision` (an `INLINEDEC` node with a `criteria` expression and `yes`/`no` branches), `subflow` (expands to an `INFLOW`/`OUTFLOW` pair calling another flow by `flowCode`), `multiply-subflow` (expands to an `INMLTPL`/`OUTMLTPL` pair — like `subflow` but iterating: `arrayProperty` sets both the wire's `multiplyArrProp` and `ymlConfig.ARRAY_PROPERTY_PATH`, `saveProperty` optionally sets `ymlConfig.SAVE_PROPERTY_PATH`), `end` (an `ES` terminal), and `goto` (reconnects to an earlier node elsewhere in the same tree, by the `ref` string that node was tagged with — any node kind except `goto` itself can carry a `ref`). `goto` is how two branches that structurally re-converge (e.g. a `Y` and `N` path both leading into the same downstream decision) are expressed without duplicating that downstream subtree — only backward references are supported (the `ref` must already have been visited, and branches are visited `yes` before `no` at every decision). `action` and `decision` also accept optional `bypass`/`syncStep` strings, mapped to ROS's real underscore-prefixed wire fields (`_bypass`/`_syncStep`) — needed to faithfully carry forward an existing step that has either set, since omitting them on a `save`/`update` clears them.
+
+Two structural notes worth knowing before reconstructing an existing flow's full tree with `update_flow_steps`: (1) ROS's `ROS_FLOW_STEP` table has a composite primary key on `(stepId, parentStepId)` with no third distinguishing column — a `ref`'d node reached as the *very first* step on both sides of the decision that leads to it produces two identical-keyed rows and is rejected before any write is attempted (insert at least one other step before the shared node on one side to avoid this; every real convergence pattern in a mature flow already has this, since ROS itself can't represent the collision case). (2) `update_flow_steps`' diff (see Phase 9 below) compares `actionCode`/`decisionCriteria`/`decision`/`multiplyArrProp`/`ymlConfig`/`bypass`/`syncStep` — i.e. everything that actually affects a step's runtime behavior — so an existing step reconstructed with the wrong `ymlConfig` (e.g. forgetting a plain action's custom input-path config) or a dropped `bypass`/`syncStep` is caught as `unexpectedlyChanged` rather than silently overwritten.
+
+**Phase 9 — flow editing (1 tool, off by default):** `update_flow_steps`. Rebuilds the step tree of an existing flow (one that already has steps) from the same DSL as `save_flow_steps`, then diffs the rebuilt tree against the flow's current steps (by `actionCode`/`decisionCriteria`/`decision`/`multiplyArrProp`/`ymlConfig`/`bypass`/`syncStep` — not `stepId`, which is reassigned from scratch on every save). By default the save is rejected outright if the diff shows any existing step changed or went missing (`unexpectedlyChanged`/`unexpectedlyMissing`) — only pure additions (`added`) are allowed through, since the underlying `saveFlowStep` endpoint replaces the whole step tree on every call. Passing `force:true` lifts that abort (e.g. to intentionally insert a decision gate that converts a single terminal step into two) — it does not bypass the preview/confirm gate: a forced call still returns preview-only until `confirm:true` is also set, and the preview/warnings spell out exactly which existing steps will be altered or removed so the human approving it can review before committing. Gated by `ROS_MCP_ENABLE_WRITE`, same preview/confirm:true pattern as the other write tools.

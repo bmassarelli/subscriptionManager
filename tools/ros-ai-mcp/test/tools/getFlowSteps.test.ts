@@ -71,6 +71,14 @@ describe('getFlowSteps', () => {
     expect(result).toEqual([step]);
   });
 
+  it('returns [] (not null) when ROS responds with requestData:null — e.g. a flow with no steps yet', async () => {
+    const client = fakeClient(() => ({ requestData: null }));
+
+    const result = await getFlowSteps(client, { flowId: 34606 });
+
+    expect(result).toEqual([]);
+  });
+
   it('includes rfsVersion in the form body when provided', async () => {
     const client = fakeClient((_path, form) => {
       expect(form).toEqual({ flowId: 34606, rfsVersion: 2 });
